@@ -16,7 +16,7 @@ abstract final class AppTheme {
       useMaterial3: true,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: AppColors.surface,
-      appBarTheme: const AppBarTheme(
+      appBarTheme: const AppBarThemeData(
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -26,7 +26,7 @@ abstract final class AppTheme {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
-      inputDecorationTheme: InputDecorationTheme(
+      inputDecorationTheme: InputDecorationThemeData(
         filled: true,
         fillColor: Colors.white,
         border: OutlineInputBorder(
@@ -43,7 +43,7 @@ abstract final class AppTheme {
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 0,
         color: Colors.white,
         shape: RoundedRectangleBorder(

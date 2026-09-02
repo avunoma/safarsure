@@ -92,7 +92,8 @@ class _RequestSeatScreenState extends ConsumerState<RequestSeatScreen> {
                 ),
                 const SizedBox(height: 24),
                 DropdownButtonFormField<int>(
-                  value: _seats.clamp(1, trip.seatsAvailable),
+                  key: ValueKey(_seats.clamp(1, trip.seatsAvailable)),
+                  initialValue: _seats.clamp(1, trip.seatsAvailable),
                   decoration: const InputDecoration(
                     labelText: 'Seats',
                     prefixIcon: Icon(Icons.event_seat),
