@@ -167,7 +167,8 @@ class _PostRideScreenState extends ConsumerState<PostRideScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<int>(
-                value: _seats,
+                key: ValueKey(_seats),
+                initialValue: _seats,
                 decoration: const InputDecoration(
                   labelText: 'Total seats',
                   prefixIcon: Icon(Icons.event_seat),

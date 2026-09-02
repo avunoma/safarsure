@@ -132,7 +132,8 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<int>(
-                value: _seats,
+                key: ValueKey(_seats),
+                initialValue: _seats,
                 decoration: const InputDecoration(
                   labelText: 'Seats needed',
                   prefixIcon: Icon(Icons.event_seat),
