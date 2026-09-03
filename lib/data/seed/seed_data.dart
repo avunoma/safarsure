@@ -1,7 +1,75 @@
 import 'package:safarsure/data/models/trip.dart';
 import 'package:safarsure/data/models/vehicle.dart';
 
-List<Trip> seedTrips() {
+const leavingSoonTripIds = {
+  'trip-soon-1',
+  'trip-soon-2',
+  'trip-soon-3',
+  'trip-soon-4',
+};
+
+List<Trip> leavingSoonTrips([DateTime? reference]) {
+  final now = reference ?? DateTime.now();
+  DateTime inMinutes(int minutes) => now.add(Duration(minutes: minutes));
+
+  return [
+    Trip(
+      id: 'trip-soon-1',
+      driverId: 'driver-2',
+      driverName: 'Priya Nair',
+      driverRating: 4.9,
+      fromCity: 'Mumbai',
+      toCity: 'Pune',
+      departureTime: inMinutes(35),
+      seatsTotal: 3,
+      seatsAvailable: 2,
+      pricePerSeat: 450,
+      vehicle: const Vehicle(make: 'Maruti', model: 'Ertiga', color: 'Silver'),
+    ),
+    Trip(
+      id: 'trip-soon-2',
+      driverId: 'driver-7',
+      driverName: 'Suresh Iyer',
+      driverRating: 4.7,
+      fromCity: 'Bengaluru',
+      toCity: 'Chennai',
+      departureTime: inMinutes(70),
+      seatsTotal: 3,
+      seatsAvailable: 1,
+      pricePerSeat: 850,
+      vehicle: const Vehicle(make: 'Hyundai', model: 'Verna', color: 'White'),
+      stops: ['Hosur'],
+    ),
+    Trip(
+      id: 'trip-soon-3',
+      driverId: 'driver-8',
+      driverName: 'Meera Kapoor',
+      driverRating: 4.8,
+      fromCity: 'Delhi',
+      toCity: 'Jaipur',
+      departureTime: inMinutes(100),
+      seatsTotal: 4,
+      seatsAvailable: 3,
+      pricePerSeat: 600,
+      vehicle: const Vehicle(make: 'Honda', model: 'Amaze', color: 'Grey'),
+    ),
+    Trip(
+      id: 'trip-soon-4',
+      driverId: 'driver-9',
+      driverName: 'Karthik Rao',
+      driverRating: 4.6,
+      fromCity: 'Hyderabad',
+      toCity: 'Bengaluru',
+      departureTime: inMinutes(55),
+      seatsTotal: 3,
+      seatsAvailable: 2,
+      pricePerSeat: 900,
+      vehicle: const Vehicle(make: 'Kia', model: 'Carens', color: 'Blue'),
+    ),
+  ];
+}
+
+List<Trip> scheduledSeedTrips() {
   final now = DateTime.now();
   DateTime at(int daysFromNow, int hour, int minute) {
     final base = now.add(Duration(days: daysFromNow));
@@ -117,4 +185,13 @@ List<Trip> seedTrips() {
       vehicle: const Vehicle(make: 'Honda', model: 'City', color: 'Grey'),
     ),
   ];
+}
+
+List<Trip> seedTrips() => [...scheduledSeedTrips(), ...leavingSoonTrips()];
+
+bool isLeavingSoonTrip(Trip trip, [DateTime? reference]) {
+  final now = reference ?? DateTime.now();
+  return trip.departureTime.isAfter(now) &&
+      trip.departureTime.isBefore(now.add(const Duration(hours: 2))) &&
+      trip.seatsAvailable > 0;
 }

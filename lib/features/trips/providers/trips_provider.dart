@@ -43,6 +43,7 @@ class TripsNotifier extends StateNotifier<AsyncValue<List<Trip>>> {
     required String toCity,
     required DateTime date,
     required int seatsNeeded,
+    bool leavingSoonOnly = false,
   }) {
     final repo = _ref.read(appRepositoryProvider).value;
     if (repo == null) return [];
@@ -51,6 +52,7 @@ class TripsNotifier extends StateNotifier<AsyncValue<List<Trip>>> {
       toCity: toCity,
       date: date,
       seatsNeeded: seatsNeeded,
+      leavingSoonOnly: leavingSoonOnly,
     );
   }
 }
@@ -157,4 +159,13 @@ final tripRequestsProvider =
   return requests.whenData(
     (list) => list.where((r) => r.tripId == tripId).toList(),
   );
+});
+
+final leavingSoonTripsProvider = Provider<AsyncValue<List<Trip>>>((ref) {
+  final trips = ref.watch(tripsProvider);
+  return trips.whenData((_) {
+    final repo = ref.read(appRepositoryProvider).value;
+    if (repo == null) return <Trip>[];
+    return repo.getLeavingSoonTrips();
+  });
 });

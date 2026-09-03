@@ -12,6 +12,8 @@ const _tripsKey = 'safarsure_trips';
 const _requestsKey = 'safarsure_requests';
 const _userKey = 'safarsure_user';
 const _initializedKey = 'safarsure_initialized';
+const _seedVersionKey = 'safarsure_seed_version';
+const _currentSeedVersion = 2;
 
 class AppRepository {
   AppRepository(this._prefs);
@@ -20,12 +22,23 @@ class AppRepository {
   final _uuid = const Uuid();
 
   Future<void> initialize() async {
-    if (_prefs.getBool(_initializedKey) ?? false) {
-      return;
+    final seedVersion = _prefs.getInt(_seedVersionKey) ?? 0;
+    if (seedVersion < _currentSeedVersion) {
+      await _saveTrips(seedTrips());
+      await _prefs.setInt(_seedVersionKey, _currentSeedVersion);
+      await _prefs.setBool(_initializedKey, true);
+    } else if (!(_prefs.getBool(_initializedKey) ?? false)) {
+      await _saveTrips(seedTrips());
+      await _prefs.setBool(_initializedKey, true);
     }
-    final trips = seedTrips();
+    await _syncLeavingSoonTrips();
+  }
+
+  Future<void> _syncLeavingSoonTrips() async {
+    var trips = getTrips();
+    trips = trips.where((t) => !leavingSoonTripIds.contains(t.id)).toList();
+    trips.addAll(leavingSoonTrips());
     await _saveTrips(trips);
-    await _prefs.setBool(_initializedKey, true);
   }
 
   AppUser? getCurrentUser() {
@@ -118,31 +131,40 @@ class AppRepository {
 
   String generateId() => _uuid.v4();
 
+  List<Trip> getLeavingSoonTrips() {
+    final now = DateTime.now();
+    return getTrips().where((t) => isLeavingSoonTrip(t, now)).toList()
+      ..sort((a, b) => a.departureTime.compareTo(b.departureTime));
+  }
+
   List<Trip> searchTrips({
     required String fromCity,
     required String toCity,
     required DateTime date,
     required int seatsNeeded,
+    bool leavingSoonOnly = false,
   }) {
     final normalizedFrom = fromCity.trim().toLowerCase();
     final normalizedTo = toCity.trim().toLowerCase();
+    final now = DateTime.now();
 
     return getTrips().where((trip) {
-      final sameDay = trip.departureTime.year == date.year &&
-          trip.departureTime.month == date.month &&
-          trip.departureTime.day == date.day;
       final fromMatch =
           trip.fromCity.toLowerCase().contains(normalizedFrom) ||
               normalizedFrom.contains(trip.fromCity.toLowerCase());
       final toMatch = trip.toCity.toLowerCase().contains(normalizedTo) ||
           normalizedTo.contains(trip.toCity.toLowerCase());
+      if (!fromMatch || !toMatch || trip.seatsAvailable < seatsNeeded) {
+        return false;
+      }
+      if (leavingSoonOnly) {
+        return isLeavingSoonTrip(trip, now);
+      }
+      final sameDay = trip.departureTime.year == date.year &&
+          trip.departureTime.month == date.month &&
+          trip.departureTime.day == date.day;
       return sameDay &&
-          fromMatch &&
-          toMatch &&
-          trip.seatsAvailable >= seatsNeeded &&
-          trip.departureTime.isAfter(DateTime.now().subtract(
-            const Duration(hours: 1),
-          ));
+          trip.departureTime.isAfter(now.subtract(const Duration(hours: 1)));
     }).toList()
       ..sort((a, b) => a.departureTime.compareTo(b.departureTime));
   }

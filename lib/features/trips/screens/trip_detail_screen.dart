@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:safarsure/core/theme/app_colors.dart';
+import 'package:safarsure/core/widgets/price_comparison.dart';
 import 'package:safarsure/data/models/ride_request.dart';
 import 'package:safarsure/data/repositories/app_repository.dart';
 import 'package:safarsure/features/trips/providers/trips_provider.dart';
@@ -133,16 +134,12 @@ class TripDetailScreen extends ConsumerWidget {
                           value:
                               '${trip.seatsAvailable} of ${trip.seatsTotal} available',
                         ),
-                        const SizedBox(height: 12),
-                        _DetailRow(
-                          icon: Icons.currency_rupee,
-                          label: 'Price',
-                          value: '₹${trip.pricePerSeat} per seat',
-                        ),
                       ],
                     ),
                   ),
                 ),
+                const SizedBox(height: 16),
+                PriceComparison(trip: trip),
                 const SizedBox(height: 16),
                 Container(
                   height: 120,

@@ -88,6 +88,8 @@ final routerProvider = Provider<GoRouter>((ref) {
                         toCity: params['toCity'] as String? ?? '',
                         date: params['date'] as DateTime? ?? DateTime.now(),
                         seats: params['seats'] as int? ?? 1,
+                        leavingSoonOnly:
+                            params['leavingSoonOnly'] as bool? ?? false,
                       );
                     },
                   ),

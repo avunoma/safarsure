@@ -13,12 +13,14 @@ class SearchResultsScreen extends ConsumerWidget {
     required this.toCity,
     required this.date,
     required this.seats,
+    this.leavingSoonOnly = false,
   });
 
   final String fromCity;
   final String toCity;
   final DateTime date;
   final int seats;
+  final bool leavingSoonOnly;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -38,6 +40,7 @@ class SearchResultsScreen extends ConsumerWidget {
                 toCity: toCity,
                 date: date,
                 seatsNeeded: seats,
+                leavingSoonOnly: leavingSoonOnly,
               );
 
           if (results.isEmpty) {
@@ -72,7 +75,9 @@ class SearchResultsScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${dateFormat.format(date)} · $seats seat${seats == 1 ? '' : 's'}',
+                      leavingSoonOnly
+                          ? 'Leaving in next 2 hours · $seats seat${seats == 1 ? '' : 's'}'
+                          : '${dateFormat.format(date)} · $seats seat${seats == 1 ? '' : 's'}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],

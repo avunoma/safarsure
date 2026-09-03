@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:safarsure/core/theme/app_colors.dart';
 import 'package:safarsure/core/constants/indian_cities.dart';
 import 'package:safarsure/core/widgets/common_widgets.dart';
 
@@ -18,6 +19,7 @@ class _SearchScreenState extends State<SearchScreen> {
   DateTime _selectedDate = DateTime.now();
   TimeOfDay _selectedTime = TimeOfDay.now();
   int _seats = 1;
+  bool _leavingSoonOnly = false;
 
   @override
   void dispose() {
@@ -66,6 +68,7 @@ class _SearchScreenState extends State<SearchScreen> {
         'toCity': _toController.text.trim(),
         'date': dateTime,
         'seats': _seats,
+        'leavingSoonOnly': _leavingSoonOnly,
       },
     );
   }
@@ -131,6 +134,32 @@ class _SearchScreenState extends State<SearchScreen> {
                 ],
               ),
               const SizedBox(height: 16),
+              FilterChip(
+                label: const Text('Leaving soon (next 2 hrs)'),
+                selected: _leavingSoonOnly,
+                onSelected: (value) => setState(() => _leavingSoonOnly = value),
+                avatar: Icon(
+                  Icons.schedule,
+                  size: 18,
+                  color: _leavingSoonOnly ? Colors.white : AppColors.accent,
+                ),
+                selectedColor: AppColors.primary,
+                checkmarkColor: Colors.white,
+                labelStyle: TextStyle(
+                  color: _leavingSoonOnly ? Colors.white : AppColors.charcoal,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (_leavingSoonOnly)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8, bottom: 8),
+                  child: Text(
+                    'Shows trips departing within 2 hours — ignores date above',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.charcoalMuted,
+                        ),
+                  ),
+                ),
               DropdownButtonFormField<int>(
                 key: ValueKey(_seats),
                 initialValue: _seats,

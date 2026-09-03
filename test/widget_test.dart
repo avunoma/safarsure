@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:safarsure/core/constants/app_constants.dart';
+import 'package:safarsure/core/pricing/fare_estimator.dart';
 import 'package:safarsure/data/seed/seed_data.dart';
 
 void main() {
@@ -9,6 +10,22 @@ void main() {
 
     final routes = trips.map((t) => '${t.fromCity}-${t.toCity}').toSet();
     expect(routes.length, greaterThanOrEqualTo(4));
+  });
+
+  test('leaving soon seed has at least 3 trips within 2 hours', () {
+    final now = DateTime(2026, 9, 3, 10, 0);
+    final soon = leavingSoonTrips(now);
+    expect(soon.length, greaterThanOrEqualTo(3));
+    for (final trip in soon) {
+      expect(isLeavingSoonTrip(trip, now), isTrue);
+    }
+  });
+
+  test('Ola estimate is much higher than cost-share for known routes', () {
+    final ola = FareEstimator.estimateOlaFare('Mumbai', 'Pune');
+    const share = 450;
+    expect(ola, greaterThan(share * 3));
+    expect(FareEstimator.savingsPercent(ola, share), greaterThan(50));
   });
 
   test('app constants are set', () {
