@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:safarsure/core/theme/app_colors.dart';
+import 'package:safarsure/core/widgets/common_widgets.dart';
 import 'package:safarsure/data/models/user.dart';
 import 'package:safarsure/features/auth/providers/auth_provider.dart';
+import 'package:safarsure/features/trips/providers/trips_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -12,6 +14,7 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authStateProvider).value;
     final isDriver = user?.role == UserRole.driver;
+    final leavingSoonAsync = ref.watch(leavingSoonTripsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -41,7 +44,7 @@ class HomeScreen extends ConsumerWidget {
             Text(
               isDriver
                   ? 'Manage your rides or switch to Rider mode in Profile.'
-                  : 'Where would you like to go today?',
+                  : 'Share a ride — pay fuel + toll, not a taxi fare.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppColors.charcoalMuted,
                   ),
@@ -103,7 +106,69 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 28),
-              _SafetyBanner(),
+              _ShareNotFareBanner(),
+              const SizedBox(height: 28),
+              Row(
+                children: [
+                  const Icon(Icons.schedule, color: AppColors.accent, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Leaving soon',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Next 2 hrs',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.accent,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Trips departing soon — compare your share vs Ola',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 12),
+              leavingSoonAsync.when(
+                loading: () => const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: CircularProgressIndicator(),
+                  ),
+                ),
+                error: (e, _) => Text('Could not load trips: $e'),
+                data: (trips) {
+                  if (trips.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text('No trips in the next 2 hours right now.'),
+                    );
+                  }
+                  return Column(
+                    children: trips
+                        .map(
+                          (trip) => TripCard(
+                            trip: trip,
+                            onTap: () =>
+                                context.push('/home/trip/${trip.id}'),
+                          ),
+                        )
+                        .toList(),
+                  );
+                },
+              ),
               const SizedBox(height: 28),
               Text(
                 'Popular routes',
@@ -135,7 +200,7 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _SafetyBanner extends StatelessWidget {
+class _ShareNotFareBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -152,14 +217,14 @@ class _SafetyBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.shield, color: Colors.white, size: 36),
+          const Icon(Icons.directions_car, color: Colors.white, size: 36),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Travel protected',
+                  'Share, not fare',
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -167,7 +232,7 @@ class _SafetyBanner extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'Safety-first carpooling for Indian roads',
+                  'Verified private car · pay only fuel + toll share',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.85),
                     fontSize: 13,
