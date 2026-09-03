@@ -34,7 +34,9 @@ City search works offline: tap Pickup → full city list appears; type `ban` →
 
 ## Two-phone demo (shared cloud)
 
-Requests and chat sync via **Firestore** (REST when Firebase SDK is not configured). No `google-services.json` needed for REST mode.
+Requests, trips, and chat sync via **Firestore** (REST when Firebase SDK is not configured). No `google-services.json` needed for REST mode.
+
+Published trips are upserted to the `trips` collection (driver name omitted; aggregate rating kept). Other devices merge cloud trips on init and every 2s poll, so search finds newly posted rides.
 
 1. Create a Firebase project (or use a shared team demo project) with Firestore in **test mode** / open rules for MVP
 2. Enable Firestore API; copy the **Web API key** and **project ID** (client keys are not server secrets)

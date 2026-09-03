@@ -3,6 +3,7 @@ import 'package:safarsure/core/cloud/cloud_sync_models.dart';
 import 'package:safarsure/core/firebase/firebase_service.dart';
 import 'package:safarsure/data/models/chat_message.dart';
 import 'package:safarsure/data/models/ride_request.dart';
+import 'package:safarsure/data/models/trip.dart';
 
 class FirestoreSdkCloudSync implements CloudSyncService {
   FirestoreSdkCloudSync({FirebaseFirestore? firestore}) : _dbOverride = firestore;
@@ -12,9 +13,33 @@ class FirestoreSdkCloudSync implements CloudSyncService {
 
   static const _requests = 'ride_requests';
   static const _syncCodes = 'sync_codes';
+  static const _trips = 'trips';
 
   @override
   bool get isAvailable => FirebaseService.isAvailable;
+
+  CollectionReference<Map<String, dynamic>>? get _tripsCol =>
+      _firestore?.collection(_trips);
+
+  @override
+  Future<void> upsertTrip(Trip trip) async {
+    final tripsCol = _tripsCol;
+    if (tripsCol == null) return;
+    await tripsCol.doc(trip.id).set({
+      'tripJson': tripToJsonField(trip),
+    }, SetOptions(merge: true));
+  }
+
+  @override
+  Future<List<Trip>> fetchTrips() async {
+    final tripsCol = _tripsCol;
+    if (tripsCol == null) return [];
+    final snap = await tripsCol.get();
+    return snap.docs
+        .map((d) => tripFromJsonField(d.data()['tripJson'] as String?))
+        .whereType<Trip>()
+        .toList();
+  }
 
   FirebaseFirestore? get _firestore {
     if (!isAvailable) return null;

@@ -3,6 +3,7 @@ import 'package:safarsure/core/cloud/firestore_rest_client.dart';
 import 'package:safarsure/core/config/app_config.dart';
 import 'package:safarsure/data/models/chat_message.dart';
 import 'package:safarsure/data/models/ride_request.dart';
+import 'package:safarsure/data/models/trip.dart';
 
 class FirestoreRestCloudSync implements CloudSyncService {
   FirestoreRestCloudSync({FirestoreRestClient? client})
@@ -16,9 +17,28 @@ class FirestoreRestCloudSync implements CloudSyncService {
 
   static const _requests = 'ride_requests';
   static const _syncCodes = 'sync_codes';
+  static const _trips = 'trips';
 
   @override
   bool get isAvailable => AppConfig.hasDemoCloudRest;
+
+  @override
+  Future<void> upsertTrip(Trip trip) async {
+    if (!isAvailable) return;
+    await _client.setDocument('$_trips/${trip.id}', {
+      'tripJson': tripToJsonField(trip),
+    });
+  }
+
+  @override
+  Future<List<Trip>> fetchTrips() async {
+    if (!isAvailable) return [];
+    final docs = await _client.listCollection(_trips);
+    return docs
+        .map((doc) => tripFromJsonField(doc['tripJson'] as String?))
+        .whereType<Trip>()
+        .toList();
+  }
 
   @override
   Future<void> upsertRequest(

@@ -4,6 +4,7 @@ import 'package:safarsure/core/cloud/firestore_sdk_cloud_sync.dart';
 import 'package:safarsure/core/firebase/firebase_service.dart';
 import 'package:safarsure/data/models/chat_message.dart';
 import 'package:safarsure/data/models/ride_request.dart';
+import 'package:safarsure/data/models/trip.dart';
 
 class CompositeCloudSyncService implements CloudSyncService {
   CompositeCloudSyncService({
@@ -39,6 +40,18 @@ class CompositeCloudSyncService implements CloudSyncService {
       throw StateError('Cloud sync is not configured');
     }
     return active;
+  }
+
+  @override
+  Future<void> upsertTrip(Trip trip) async {
+    if (!isAvailable) return;
+    await _service.upsertTrip(trip);
+  }
+
+  @override
+  Future<List<Trip>> fetchTrips() async {
+    if (!isAvailable) return [];
+    return _service.fetchTrips();
   }
 
   @override
@@ -84,6 +97,12 @@ class CompositeCloudSyncService implements CloudSyncService {
 class NoOpCloudSyncService implements CloudSyncService {
   @override
   bool get isAvailable => false;
+
+  @override
+  Future<void> upsertTrip(Trip trip) async {}
+
+  @override
+  Future<List<Trip>> fetchTrips() async => [];
 
   @override
   Future<void> upsertRequest(
