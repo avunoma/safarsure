@@ -1,7 +1,6 @@
 import 'package:safarsure/core/cloud/cloud_sync_models.dart';
 import 'package:safarsure/core/cloud/firestore_rest_cloud_sync.dart';
 import 'package:safarsure/core/cloud/firestore_sdk_cloud_sync.dart';
-import 'package:safarsure/core/config/app_config.dart';
 import 'package:safarsure/core/firebase/firebase_service.dart';
 import 'package:safarsure/data/models/chat_message.dart';
 import 'package:safarsure/data/models/ride_request.dart';
@@ -10,15 +9,24 @@ class CompositeCloudSyncService implements CloudSyncService {
   CompositeCloudSyncService({
     CloudSyncService? sdk,
     CloudSyncService? rest,
-  })  : _sdk = sdk ?? FirestoreSdkCloudSync(),
+  })  : _sdkOverride = sdk,
         _rest = rest ?? FirestoreRestCloudSync();
 
-  final CloudSyncService _sdk;
+  final CloudSyncService? _sdkOverride;
   final CloudSyncService _rest;
+  CloudSyncService? _sdk;
+
+  /// Native Firestore is created only after Firebase.initializeApp() succeeds.
+  CloudSyncService? get _sdkService {
+    if (_sdkOverride != null) return _sdkOverride;
+    if (!FirebaseService.isAvailable) return null;
+    return _sdk ??= FirestoreSdkCloudSync();
+  }
 
   CloudSyncService? get _active {
-    if (FirebaseService.isAvailable && _sdk.isAvailable) return _sdk;
-    if (AppConfig.hasDemoCloudRest && _rest.isAvailable) return _rest;
+    final sdk = _sdkService;
+    if (sdk != null && sdk.isAvailable) return sdk;
+    if (_rest.isAvailable) return _rest;
     return null;
   }
 

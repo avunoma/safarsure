@@ -5,10 +5,10 @@ import 'package:safarsure/data/models/chat_message.dart';
 import 'package:safarsure/data/models/ride_request.dart';
 
 class FirestoreSdkCloudSync implements CloudSyncService {
-  FirestoreSdkCloudSync({FirebaseFirestore? firestore})
-      : _db = firestore ?? FirebaseFirestore.instance;
+  FirestoreSdkCloudSync({FirebaseFirestore? firestore}) : _dbOverride = firestore;
 
-  final FirebaseFirestore _db;
+  final FirebaseFirestore? _dbOverride;
+  FirebaseFirestore? _db;
 
   static const _requests = 'ride_requests';
   static const _syncCodes = 'sync_codes';
@@ -16,19 +16,29 @@ class FirestoreSdkCloudSync implements CloudSyncService {
   @override
   bool get isAvailable => FirebaseService.isAvailable;
 
-  CollectionReference<Map<String, dynamic>> get _requestsCol =>
-      _db.collection(_requests);
+  FirebaseFirestore? get _firestore {
+    if (!isAvailable) return null;
+    return _dbOverride ?? (_db ??= FirebaseFirestore.instance);
+  }
+
+  CollectionReference<Map<String, dynamic>>? get _requestsCol =>
+      _firestore?.collection(_requests);
 
   @override
   Future<void> upsertRequest(
     RideRequest request, {
     required bool revealRider,
   }) async {
-    if (!isAvailable) return;
+    final db = _firestore;
+    final requestsCol = _requestsCol;
+    if (db == null || requestsCol == null) return;
+
     final cloud = requestToCloud(request, revealRider: revealRider);
-    await _requestsCol.doc(request.id).set(requestToMap(cloud), SetOptions(merge: true));
+    await requestsCol
+        .doc(request.id)
+        .set(requestToMap(cloud), SetOptions(merge: true));
     if (request.syncCode != null) {
-      await _db.collection(_syncCodes).doc(request.syncCode).set({
+      await db.collection(_syncCodes).doc(request.syncCode).set({
         'requestId': request.id,
       });
     }
@@ -36,15 +46,18 @@ class FirestoreSdkCloudSync implements CloudSyncService {
 
   @override
   Future<List<RideRequest>> fetchRequestsForTrip(String tripId) async {
-    if (!isAvailable) return [];
-    final snap = await _requestsCol.where('tripId', isEqualTo: tripId).get();
+    final requestsCol = _requestsCol;
+    if (requestsCol == null) return [];
+    final snap = await requestsCol.where('tripId', isEqualTo: tripId).get();
     return snap.docs.map((d) => requestFromMap(d.data())).toList();
   }
 
   @override
   Future<RideRequest?> fetchRequestBySyncCode(String syncCode) async {
-    if (!isAvailable) return null;
-    final index = await _db.collection(_syncCodes).doc(syncCode.toUpperCase()).get();
+    final db = _firestore;
+    if (db == null) return null;
+    final index =
+        await db.collection(_syncCodes).doc(syncCode.toUpperCase()).get();
     if (!index.exists) return null;
     final requestId = index.data()?['requestId'] as String?;
     if (requestId == null) return null;
@@ -53,17 +66,19 @@ class FirestoreSdkCloudSync implements CloudSyncService {
 
   @override
   Future<RideRequest?> fetchRequestById(String requestId) async {
-    if (!isAvailable) return null;
-    final doc = await _requestsCol.doc(requestId).get();
+    final requestsCol = _requestsCol;
+    if (requestsCol == null) return null;
+    final doc = await requestsCol.doc(requestId).get();
     if (!doc.exists) return null;
     return requestFromMap(doc.data()!);
   }
 
   @override
   Future<void> sendMessage(ChatMessage message) async {
-    if (!isAvailable) return;
+    final requestsCol = _requestsCol;
+    if (requestsCol == null) return;
     final cloud = messageToCloud(message);
-    await _requestsCol
+    await requestsCol
         .doc(message.requestId)
         .collection('messages')
         .doc(message.id)
@@ -72,8 +87,9 @@ class FirestoreSdkCloudSync implements CloudSyncService {
 
   @override
   Future<List<ChatMessage>> fetchMessages(String requestId) async {
-    if (!isAvailable) return [];
-    final snap = await _requestsCol
+    final requestsCol = _requestsCol;
+    if (requestsCol == null) return [];
+    final snap = await requestsCol
         .doc(requestId)
         .collection('messages')
         .orderBy('sentAt')
