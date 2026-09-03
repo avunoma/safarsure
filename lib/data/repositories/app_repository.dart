@@ -40,6 +40,7 @@ class AppRepository {
       await _prefs.setBool(_initializedKey, true);
     }
     await _syncLeavingSoonTrips();
+    await syncTripsFromCloud();
   }
 
   Future<void> _syncLeavingSoonTrips() async {
@@ -80,6 +81,7 @@ class AppRepository {
   Future<Trip> addTrip(Trip trip) async {
     final trips = getTrips()..add(trip);
     await _saveTrips(trips);
+    await _cloudUpsertTrip(trip);
     return trip;
   }
 
@@ -89,6 +91,7 @@ class AppRepository {
     if (index >= 0) {
       trips[index] = trip;
       await _saveTrips(trips);
+      await _cloudUpsertTrip(trip);
     }
   }
 
@@ -155,6 +158,8 @@ class AppRepository {
 
     var changed = false;
 
+    if (await syncTripsFromCloud()) changed = true;
+
     for (final tripId in driverTripIds) {
       final remoteRequests = await cloud.fetchRequestsForTrip(tripId);
       for (final remote in remoteRequests) {
@@ -182,6 +187,58 @@ class AppRepository {
     }
 
     return changed;
+  }
+
+  Future<bool> syncTripsFromCloud() async {
+    final cloud = _cloud;
+    if (cloud == null || !cloud.isAvailable) return false;
+    final remoteTrips = await cloud.fetchTrips();
+    return _mergeRemoteTrips(remoteTrips);
+  }
+
+  Future<void> _cloudUpsertTrip(Trip trip) async {
+    final cloud = _cloud;
+    if (cloud == null || !cloud.isAvailable) return;
+    await cloud.upsertTrip(trip);
+  }
+
+  Future<bool> _mergeRemoteTrips(List<Trip> remoteTrips) async {
+    if (remoteTrips.isEmpty) return false;
+
+    final trips = getTrips();
+    final indexById = <String, int>{};
+    for (var i = 0; i < trips.length; i++) {
+      indexById[trips[i].id] = i;
+    }
+
+    var changed = false;
+    for (final remote in remoteTrips) {
+      final index = indexById[remote.id];
+      if (index == null) {
+        trips.add(remote);
+        indexById[remote.id] = trips.length - 1;
+        changed = true;
+        continue;
+      }
+
+      final merged = _mergeTripFields(trips[index], remote);
+      if (merged != trips[index]) {
+        trips[index] = merged;
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      await _saveTrips(trips);
+    }
+    return changed;
+  }
+
+  Trip _mergeTripFields(Trip local, Trip remote) {
+    return remote.copyWith(
+      driverName:
+          local.driverName.isNotEmpty ? local.driverName : remote.driverName,
+    );
   }
 
   Future<void> _cloudUpsert(

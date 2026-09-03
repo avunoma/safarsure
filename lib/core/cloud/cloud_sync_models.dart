@@ -1,9 +1,17 @@
+import 'dart:convert';
+
 import 'package:safarsure/core/utils/privacy.dart';
 import 'package:safarsure/data/models/chat_message.dart';
 import 'package:safarsure/data/models/ride_request.dart';
+import 'package:safarsure/data/models/trip.dart';
+import 'package:safarsure/data/models/vehicle.dart';
 
 abstract class CloudSyncService {
   bool get isAvailable;
+
+  Future<void> upsertTrip(Trip trip);
+
+  Future<List<Trip>> fetchTrips();
 
   Future<void> upsertRequest(RideRequest request, {required bool revealRider});
 
@@ -96,3 +104,58 @@ ChatMessage messageFromMap(Map<String, dynamic> map) {
     sentAt: DateTime.parse(map['sentAt'] as String),
   );
 }
+
+/// Cloud trips omit driver name/phone; aggregate rating only.
+Trip tripToCloud(Trip trip) => trip.copyWith(driverName: '');
+
+Map<String, dynamic> tripToMap(Trip trip) {
+  final cloud = tripToCloud(trip);
+  return {
+    'id': cloud.id,
+    'driverId': cloud.driverId,
+    'fromCity': cloud.fromCity,
+    'toCity': cloud.toCity,
+    'departureTime': cloud.departureTime.toIso8601String(),
+    'seatsTotal': cloud.seatsTotal,
+    'seatsAvailable': cloud.seatsAvailable,
+    'pricePerSeat': cloud.pricePerSeat,
+    'vehicleMake': cloud.vehicle.make,
+    'vehicleModel': cloud.vehicle.model,
+    'vehicleColor': cloud.vehicle.color,
+    'stops': cloud.stops.join('|'),
+    'driverRating': cloud.driverRating,
+    'driverRatingCount': cloud.driverRatingCount,
+  };
+}
+
+Trip tripFromMap(Map<String, dynamic> map) {
+  final stopsRaw = map['stops'] as String? ?? '';
+  return Trip(
+    id: map['id'] as String,
+    driverId: map['driverId'] as String,
+    fromCity: map['fromCity'] as String,
+    toCity: map['toCity'] as String,
+    departureTime: DateTime.parse(map['departureTime'] as String),
+    seatsTotal: map['seatsTotal'] as int,
+    seatsAvailable: map['seatsAvailable'] as int,
+    pricePerSeat: map['pricePerSeat'] as int,
+    vehicle: Vehicle(
+      make: map['vehicleMake'] as String,
+      model: map['vehicleModel'] as String,
+      color: map['vehicleColor'] as String,
+    ),
+    stops: stopsRaw.isEmpty
+        ? const []
+        : stopsRaw.split('|').where((s) => s.isNotEmpty).toList(),
+    driverRating: (map['driverRating'] as num?)?.toDouble() ?? 4.5,
+    driverRatingCount: map['driverRatingCount'] as int? ?? 0,
+  );
+}
+
+/// Decode a trip stored as JSON in a single Firestore string field.
+Trip? tripFromJsonField(String? json) {
+  if (json == null || json.isEmpty) return null;
+  return tripFromMap(jsonDecode(json) as Map<String, dynamic>);
+}
+
+String tripToJsonField(Trip trip) => jsonEncode(tripToMap(trip));

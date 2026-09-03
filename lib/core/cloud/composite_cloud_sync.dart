@@ -1,24 +1,33 @@
 import 'package:safarsure/core/cloud/cloud_sync_models.dart';
 import 'package:safarsure/core/cloud/firestore_rest_cloud_sync.dart';
 import 'package:safarsure/core/cloud/firestore_sdk_cloud_sync.dart';
-import 'package:safarsure/core/config/app_config.dart';
 import 'package:safarsure/core/firebase/firebase_service.dart';
 import 'package:safarsure/data/models/chat_message.dart';
 import 'package:safarsure/data/models/ride_request.dart';
+import 'package:safarsure/data/models/trip.dart';
 
 class CompositeCloudSyncService implements CloudSyncService {
   CompositeCloudSyncService({
     CloudSyncService? sdk,
     CloudSyncService? rest,
-  })  : _sdk = sdk ?? FirestoreSdkCloudSync(),
+  })  : _sdkOverride = sdk,
         _rest = rest ?? FirestoreRestCloudSync();
 
-  final CloudSyncService _sdk;
+  final CloudSyncService? _sdkOverride;
   final CloudSyncService _rest;
+  CloudSyncService? _sdk;
+
+  /// Native Firestore is created only after Firebase.initializeApp() succeeds.
+  CloudSyncService? get _sdkService {
+    if (_sdkOverride != null) return _sdkOverride;
+    if (!FirebaseService.isAvailable) return null;
+    return _sdk ??= FirestoreSdkCloudSync();
+  }
 
   CloudSyncService? get _active {
-    if (FirebaseService.isAvailable && _sdk.isAvailable) return _sdk;
-    if (AppConfig.hasDemoCloudRest && _rest.isAvailable) return _rest;
+    final sdk = _sdkService;
+    if (sdk != null && sdk.isAvailable) return sdk;
+    if (_rest.isAvailable) return _rest;
     return null;
   }
 
@@ -31,6 +40,18 @@ class CompositeCloudSyncService implements CloudSyncService {
       throw StateError('Cloud sync is not configured');
     }
     return active;
+  }
+
+  @override
+  Future<void> upsertTrip(Trip trip) async {
+    if (!isAvailable) return;
+    await _service.upsertTrip(trip);
+  }
+
+  @override
+  Future<List<Trip>> fetchTrips() async {
+    if (!isAvailable) return [];
+    return _service.fetchTrips();
   }
 
   @override
@@ -76,6 +97,12 @@ class CompositeCloudSyncService implements CloudSyncService {
 class NoOpCloudSyncService implements CloudSyncService {
   @override
   bool get isAvailable => false;
+
+  @override
+  Future<void> upsertTrip(Trip trip) async {}
+
+  @override
+  Future<List<Trip>> fetchTrips() async => [];
 
   @override
   Future<void> upsertRequest(
