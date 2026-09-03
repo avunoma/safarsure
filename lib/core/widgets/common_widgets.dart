@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:safarsure/core/theme/app_colors.dart';
+import 'package:safarsure/core/utils/privacy.dart';
 import 'package:safarsure/data/models/ride_request.dart';
 import 'package:safarsure/data/models/trip.dart';
 
@@ -58,15 +59,22 @@ class TripCard extends StatelessWidget {
     required this.trip,
     required this.onTap,
     this.trailing,
+    this.revealIdentity = false,
   });
 
   final Trip trip;
   final VoidCallback onTap;
   final Widget? trailing;
+  final bool revealIdentity;
 
   @override
   Widget build(BuildContext context) {
     final timeFormat = DateFormat('EEE, d MMM · h:mm a');
+    final driverLabel = revealIdentity && trip.driverName.isNotEmpty
+        ? revealedFirstName(trip.driverName)
+        : privatePartyLabel(isDriver: true);
+    final ratingCount =
+        trip.driverRatingCount > 0 ? trip.driverRatingCount : 12;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -83,12 +91,12 @@ class TripCard extends StatelessWidget {
                   CircleAvatar(
                     backgroundColor: AppColors.primary.withValues(alpha: 0.15),
                     foregroundColor: AppColors.primary,
-                    child: Text(
-                      trip.driverName.isNotEmpty
-                          ? trip.driverName[0].toUpperCase()
-                          : '?',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
+                    child: revealIdentity && trip.driverName.isNotEmpty
+                        ? Text(
+                            trip.driverName[0].toUpperCase(),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          )
+                        : const Icon(Icons.verified_user_outlined, size: 22),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -96,7 +104,7 @@ class TripCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          trip.driverName,
+                          driverLabel,
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                         Row(
@@ -105,7 +113,7 @@ class TripCard extends StatelessWidget {
                                 size: 14, color: AppColors.accent),
                             const SizedBox(width: 4),
                             Text(
-                              trip.driverRating.toStringAsFixed(1),
+                              formatRating(trip.driverRating, ratingCount),
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],

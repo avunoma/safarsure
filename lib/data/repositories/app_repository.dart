@@ -2,18 +2,22 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:safarsure/data/models/chat_message.dart';
 import 'package:safarsure/data/models/ride_request.dart';
 import 'package:safarsure/data/models/trip.dart';
+import 'package:safarsure/data/models/trip_rating.dart';
 import 'package:safarsure/data/models/user.dart';
 import 'package:safarsure/data/seed/seed_data.dart';
 import 'package:uuid/uuid.dart';
 
 const _tripsKey = 'safarsure_trips';
 const _requestsKey = 'safarsure_requests';
+const _messagesKey = 'safarsure_messages';
+const _ratingsKey = 'safarsure_ratings';
 const _userKey = 'safarsure_user';
 const _initializedKey = 'safarsure_initialized';
 const _seedVersionKey = 'safarsure_seed_version';
-const _currentSeedVersion = 2;
+const _currentSeedVersion = 3;
 
 class AppRepository {
   AppRepository(this._prefs);
@@ -167,6 +171,124 @@ class AppRepository {
           trip.departureTime.isAfter(now.subtract(const Duration(hours: 1)));
     }).toList()
       ..sort((a, b) => a.departureTime.compareTo(b.departureTime));
+  }
+
+  List<ChatMessage> getMessagesForRequest(String requestId) {
+    final raw = _prefs.getString(_messagesKey);
+    if (raw == null) return [];
+    final list = jsonDecode(raw) as List<dynamic>;
+    return list
+        .map((e) => ChatMessage.fromJson(e as Map<String, dynamic>))
+        .where((m) => m.requestId == requestId)
+        .toList()
+      ..sort((a, b) => a.sentAt.compareTo(b.sentAt));
+  }
+
+  Future<ChatMessage> sendMessage({
+    required String requestId,
+    required String senderId,
+    required String senderName,
+    required String text,
+  }) async {
+    final raw = _prefs.getString(_messagesKey);
+    final all = raw == null
+        ? <ChatMessage>[]
+        : (jsonDecode(raw) as List<dynamic>)
+            .map((e) => ChatMessage.fromJson(e as Map<String, dynamic>))
+            .toList();
+
+    final message = ChatMessage(
+      id: generateId(),
+      requestId: requestId,
+      senderId: senderId,
+      senderName: senderName,
+      text: text.trim(),
+      sentAt: DateTime.now(),
+    );
+    all.add(message);
+    await _prefs.setString(
+      _messagesKey,
+      jsonEncode(all.map((m) => m.toJson()).toList()),
+    );
+    return message;
+  }
+
+  List<TripRating> getRatings() {
+    final raw = _prefs.getString(_ratingsKey);
+    if (raw == null) return [];
+    final list = jsonDecode(raw) as List<dynamic>;
+    return list
+        .map((e) => TripRating.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  bool hasRated(String requestId, String raterId) {
+    return getRatings().any(
+      (r) => r.requestId == requestId && r.raterId == raterId,
+    );
+  }
+
+  Future<TripRating> submitRating({
+    required String requestId,
+    required String tripId,
+    required String raterId,
+    required String rateeId,
+    required int stars,
+    String comment = '',
+  }) async {
+    final ratings = getRatings();
+    if (ratings.any((r) => r.requestId == requestId && r.raterId == raterId)) {
+      throw StateError('Already rated');
+    }
+
+    final rating = TripRating(
+      id: generateId(),
+      requestId: requestId,
+      tripId: tripId,
+      raterId: raterId,
+      rateeId: rateeId,
+      stars: stars.clamp(1, 5),
+      comment: comment.trim(),
+      createdAt: DateTime.now(),
+    );
+    ratings.add(rating);
+    await _prefs.setString(
+      _ratingsKey,
+      jsonEncode(ratings.map((r) => r.toJson()).toList()),
+    );
+
+    final current = getCurrentUser();
+    if (current != null && current.id == rateeId) {
+      final summary = ratingSummaryForUser(
+        rateeId,
+        seedRating: current.rating,
+        seedCount: current.ratingCount,
+      );
+      await saveUser(
+        current.copyWith(
+          rating: summary.average,
+          ratingCount: summary.count,
+        ),
+      );
+    }
+
+    return rating;
+  }
+
+  ({double average, int count}) ratingSummaryForUser(
+    String userId, {
+    double seedRating = 4.5,
+    int seedCount = 0,
+  }) {
+    final userRatings = getRatings().where((r) => r.rateeId == userId).toList();
+    if (userRatings.isEmpty) {
+      return (average: seedRating, count: seedCount);
+    }
+    final total = userRatings.fold<int>(0, (sum, r) => sum + r.stars);
+    return (
+      average: total / userRatings.length,
+      count: userRatings.length + seedCount,
+    );
   }
 }
 

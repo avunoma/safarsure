@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:safarsure/core/constants/indian_cities.dart';
-import 'package:safarsure/core/widgets/common_widgets.dart';
+import 'package:safarsure/core/widgets/place_autocomplete_field.dart';
 import 'package:safarsure/data/models/trip.dart';
 import 'package:safarsure/data/models/vehicle.dart';
 import 'package:safarsure/data/repositories/app_repository.dart';
@@ -121,17 +120,15 @@ class _PostRideScreenState extends ConsumerState<PostRideScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              CityAutocompleteField(
+              PlaceAutocompleteField(
                 label: 'From',
                 controller: _fromController,
-                suggestions: indianCities,
                 icon: Icons.trip_origin,
               ),
               const SizedBox(height: 16),
-              CityAutocompleteField(
+              PlaceAutocompleteField(
                 label: 'To',
                 controller: _toController,
-                suggestions: indianCities,
                 icon: Icons.location_on,
               ),
               const SizedBox(height: 16),

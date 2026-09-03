@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:safarsure/core/theme/app_colors.dart';
+import 'package:safarsure/core/utils/privacy.dart';
 import 'package:safarsure/core/widgets/common_widgets.dart';
 import 'package:safarsure/data/models/ride_request.dart';
 import 'package:safarsure/data/repositories/app_repository.dart';
+import 'package:safarsure/features/auth/providers/auth_provider.dart';
 import 'package:safarsure/features/trips/providers/trips_provider.dart';
 
 class TripRequestsScreen extends ConsumerWidget {
@@ -15,6 +18,7 @@ class TripRequestsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final requestsAsync = ref.watch(tripRequestsProvider(tripId));
     final repoAsync = ref.watch(appRepositoryProvider);
+    final user = ref.watch(authStateProvider).value;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Seat requests')),
@@ -46,6 +50,13 @@ class TripRequestsScreen extends ConsumerWidget {
                 itemCount: requests.length,
                 itemBuilder: (context, index) {
                   final request = requests[index];
+                  final revealed = identityRevealed(request.status);
+                  final riderLabel = revealed
+                      ? revealedFirstName(request.riderName)
+                      : privatePartyLabel(isDriver: false);
+                  final hasRated = user != null &&
+                      repo.hasRated(request.id, user.id);
+
                   return Card(
                     margin: const EdgeInsets.only(bottom: 12),
                     child: Padding(
@@ -59,9 +70,12 @@ class TripRequestsScreen extends ConsumerWidget {
                                 backgroundColor: AppColors.primary
                                     .withValues(alpha: 0.15),
                                 foregroundColor: AppColors.primary,
-                                child: Text(
-                                  request.riderName[0].toUpperCase(),
-                                ),
+                                child: revealed
+                                    ? Text(
+                                        request.riderName[0].toUpperCase(),
+                                      )
+                                    : const Icon(Icons.person_outline,
+                                        size: 20),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -70,7 +84,7 @@ class TripRequestsScreen extends ConsumerWidget {
                                       CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      request.riderName,
+                                      riderLabel,
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -136,25 +150,57 @@ class TripRequestsScreen extends ConsumerWidget {
                               ],
                             ),
                           ],
-                          if (request.status == RequestStatus.confirmed &&
-                              request.pickupPoint != null) ...[
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                const Icon(Icons.place,
-                                    size: 16, color: AppColors.success),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    'Pickup: ${request.pickupPoint}',
-                                    style: const TextStyle(
-                                      color: AppColors.success,
-                                      fontSize: 13,
+                          if (revealed) ...[
+                            if (request.pickupPoint != null) ...[
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  const Icon(Icons.place,
+                                      size: 16, color: AppColors.success),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'Pickup: ${request.pickupPoint}',
+                                      style: const TextStyle(
+                                        color: AppColors.success,
+                                        fontSize: 13,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
+                            ],
+                            const SizedBox(height: 12),
+                            ElevatedButton.icon(
+                              onPressed: () => context.push(
+                                '/my-rides/request/${request.id}/chat',
+                              ),
+                              icon: const Icon(Icons.chat_bubble_outline),
+                              label: const Text('Chat with rider'),
+                              style: ElevatedButton.styleFrom(
+                                minimumSize: const Size(double.infinity, 44),
+                              ),
                             ),
+                            if (!hasRated) ...[
+                              const SizedBox(height: 8),
+                              OutlinedButton.icon(
+                                onPressed: () => context.push(
+                                  '/my-rides/request/${request.id}/rate',
+                                  extra: {
+                                    'tripId': trip.id,
+                                    'rateeId': request.riderId,
+                                    'rateeLabel':
+                                        revealedFirstName(request.riderName),
+                                  },
+                                ),
+                                icon: const Icon(Icons.star_outline),
+                                label: const Text('Rate rider'),
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize:
+                                      const Size(double.infinity, 44),
+                                ),
+                              ),
+                            ],
                           ],
                         ],
                       ),

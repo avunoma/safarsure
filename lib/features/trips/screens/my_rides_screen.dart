@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:safarsure/core/theme/app_colors.dart';
+import 'package:safarsure/core/utils/privacy.dart';
 import 'package:safarsure/core/widgets/common_widgets.dart';
 import 'package:safarsure/data/models/ride_request.dart';
 import 'package:safarsure/data/models/user.dart';
@@ -106,7 +107,9 @@ class _RiderRidesView extends ConsumerWidget {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Driver: ${trip.driverName} · ${request.seats} seat${request.seats == 1 ? '' : 's'}',
+                            request.status == RequestStatus.confirmed
+                                ? 'Driver: ${revealedFirstName(trip.driverName)} · ${request.seats} seat${request.seats == 1 ? '' : 's'}'
+                                : '${privatePartyLabel(isDriver: true)} · ${request.seats} seat${request.seats == 1 ? '' : 's'}',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                           if (request.status == RequestStatus.confirmed &&
