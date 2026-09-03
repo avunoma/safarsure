@@ -2,6 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:safarsure/core/cloud/cloud_sync_models.dart';
+import 'package:safarsure/core/cloud/composite_cloud_sync.dart';
+import 'package:safarsure/core/constants/indian_cities.dart';
 import 'package:safarsure/data/models/chat_message.dart';
 import 'package:safarsure/data/models/ride_request.dart';
 import 'package:safarsure/data/models/trip.dart';
@@ -20,9 +23,10 @@ const _seedVersionKey = 'safarsure_seed_version';
 const _currentSeedVersion = 3;
 
 class AppRepository {
-  AppRepository(this._prefs);
+  AppRepository(this._prefs, {CloudSyncService? cloud}) : _cloud = cloud;
 
   final SharedPreferences _prefs;
+  final CloudSyncService? _cloud;
   final _uuid = const Uuid();
 
   Future<void> initialize() async {
@@ -111,9 +115,13 @@ class AppRepository {
   }
 
   Future<RideRequest> addRequest(RideRequest request) async {
-    final requests = getRequests()..add(request);
+    final withCode = request.syncCode == null
+        ? request.copyWith(syncCode: generateSyncCode())
+        : request;
+    final requests = getRequests()..add(withCode);
     await _saveRequests(requests);
-    return request;
+    await _cloudUpsert(withCode, revealRider: false);
+    return withCode;
   }
 
   Future<void> updateRequest(RideRequest request) async {
@@ -122,7 +130,139 @@ class AppRepository {
     if (index >= 0) {
       requests[index] = request;
       await _saveRequests(requests);
+      await _cloudUpsert(
+        request,
+        revealRider: request.status == RequestStatus.confirmed,
+      );
     }
+  }
+
+  Future<RideRequest?> importRequestBySyncCode(String syncCode) async {
+    final cloud = _cloud;
+    if (cloud == null || !cloud.isAvailable) return null;
+    final remote = await cloud.fetchRequestBySyncCode(syncCode);
+    if (remote == null) return null;
+    await _mergeRemoteRequest(remote);
+    return getRequestById(remote.id);
+  }
+
+  Future<bool> syncFromCloud({
+    required List<String> driverTripIds,
+    String? riderUserId,
+  }) async {
+    final cloud = _cloud;
+    if (cloud == null || !cloud.isAvailable) return false;
+
+    var changed = false;
+
+    for (final tripId in driverTripIds) {
+      final remoteRequests = await cloud.fetchRequestsForTrip(tripId);
+      for (final remote in remoteRequests) {
+        if (await _mergeRemoteRequest(remote)) changed = true;
+      }
+    }
+
+    final riderRequests = riderUserId == null
+        ? <RideRequest>[]
+        : getRequests().where((r) => r.riderId == riderUserId);
+
+    for (final local in riderRequests) {
+      final remote = await cloud.fetchRequestById(local.id);
+      if (remote != null && await _mergeRemoteRequest(remote)) {
+        changed = true;
+      }
+    }
+
+    for (final request in getRequests()) {
+      if (request.status != RequestStatus.confirmed) continue;
+      final remoteMessages = await cloud.fetchMessages(request.id);
+      if (await _mergeRemoteMessages(request.id, remoteMessages)) {
+        changed = true;
+      }
+    }
+
+    return changed;
+  }
+
+  Future<void> _cloudUpsert(
+    RideRequest request, {
+    required bool revealRider,
+  }) async {
+    final cloud = _cloud;
+    if (cloud == null || !cloud.isAvailable) return;
+    await cloud.upsertRequest(request, revealRider: revealRider);
+  }
+
+  Future<bool> _mergeRemoteRequest(RideRequest remote) async {
+    final local = getRequestById(remote.id);
+    if (local == null) {
+      final requests = getRequests()..add(remote);
+      await _saveRequests(requests);
+      return true;
+    }
+
+    final merged = _mergeRequestFields(local, remote);
+    if (merged == local) return false;
+
+    final requests = getRequests();
+    final index = requests.indexWhere((r) => r.id == remote.id);
+    if (index >= 0) {
+      requests[index] = merged;
+      await _saveRequests(requests);
+      return true;
+    }
+    return false;
+  }
+
+  RideRequest _mergeRequestFields(RideRequest local, RideRequest remote) {
+    final remoteIsNewer = remote.status.index > local.status.index ||
+        (remote.status == local.status &&
+            remote.pickupPoint != null &&
+            local.pickupPoint == null);
+
+    if (!remoteIsNewer) return local;
+
+    return local.copyWith(
+      status: remote.status,
+      pickupPoint: remote.pickupPoint ?? local.pickupPoint,
+      pickupTime: remote.pickupTime ?? local.pickupTime,
+      riderName: remote.status == RequestStatus.confirmed &&
+              remote.riderName != 'Rider'
+          ? remote.riderName
+          : local.riderName,
+      syncCode: remote.syncCode ?? local.syncCode,
+    );
+  }
+
+  Future<bool> _mergeRemoteMessages(
+    String requestId,
+    List<ChatMessage> remoteMessages,
+  ) async {
+    if (remoteMessages.isEmpty) return false;
+
+    final raw = _prefs.getString(_messagesKey);
+    final all = raw == null
+        ? <ChatMessage>[]
+        : (jsonDecode(raw) as List<dynamic>)
+            .map((e) => ChatMessage.fromJson(e as Map<String, dynamic>))
+            .toList();
+
+    final existingIds = all.map((m) => m.id).toSet();
+    var added = false;
+    for (final message in remoteMessages) {
+      if (existingIds.add(message.id)) {
+        all.add(message);
+        added = true;
+      }
+    }
+
+    if (!added) return false;
+
+    await _prefs.setString(
+      _messagesKey,
+      jsonEncode(all.map((m) => m.toJson()).toList()),
+    );
+    return true;
   }
 
   RideRequest? getRequestById(String id) {
@@ -134,6 +274,9 @@ class AppRepository {
   }
 
   String generateId() => _uuid.v4();
+
+  String generateSyncCode() =>
+      _uuid.v4().replaceAll('-', '').substring(0, 6).toUpperCase();
 
   List<Trip> getLeavingSoonTrips() {
     final now = DateTime.now();
@@ -148,16 +291,11 @@ class AppRepository {
     required int seatsNeeded,
     bool leavingSoonOnly = false,
   }) {
-    final normalizedFrom = fromCity.trim().toLowerCase();
-    final normalizedTo = toCity.trim().toLowerCase();
     final now = DateTime.now();
 
     return getTrips().where((trip) {
-      final fromMatch =
-          trip.fromCity.toLowerCase().contains(normalizedFrom) ||
-              normalizedFrom.contains(trip.fromCity.toLowerCase());
-      final toMatch = trip.toCity.toLowerCase().contains(normalizedTo) ||
-          normalizedTo.contains(trip.toCity.toLowerCase());
+      final fromMatch = cityMatches(fromCity, trip.fromCity);
+      final toMatch = cityMatches(toCity, trip.toCity);
       if (!fromMatch || !toMatch || trip.seatsAvailable < seatsNeeded) {
         return false;
       }
@@ -210,6 +348,12 @@ class AppRepository {
       _messagesKey,
       jsonEncode(all.map((m) => m.toJson()).toList()),
     );
+
+    final cloud = _cloud;
+    if (cloud != null && cloud.isAvailable) {
+      await cloud.sendMessage(message);
+    }
+
     return message;
   }
 
@@ -297,9 +441,14 @@ final sharedPreferencesProvider =
   return SharedPreferences.getInstance();
 });
 
+final cloudSyncServiceProvider = Provider<CloudSyncService>((ref) {
+  return CompositeCloudSyncService();
+});
+
 final appRepositoryProvider = FutureProvider<AppRepository>((ref) async {
   final prefs = await ref.watch(sharedPreferencesProvider.future);
-  final repo = AppRepository(prefs);
+  final cloud = ref.watch(cloudSyncServiceProvider);
+  final repo = AppRepository(prefs, cloud: cloud);
   await repo.initialize();
   return repo;
 });

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:safarsure/core/firebase/firebase_service.dart';
+import 'package:safarsure/core/providers/cloud_sync_provider.dart';
 import 'package:safarsure/core/router/app_router.dart';
 import 'package:safarsure/core/theme/app_theme.dart';
 
@@ -17,11 +18,13 @@ class SafarSureApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
 
-    return MaterialApp.router(
-      title: 'SafarSure',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
-      routerConfig: router,
+    return CloudSyncHost(
+      child: MaterialApp.router(
+        title: 'SafarSure',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light(),
+        routerConfig: router,
+      ),
     );
   }
 }

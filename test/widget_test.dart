@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:safarsure/core/constants/app_constants.dart';
+import 'package:safarsure/core/constants/indian_cities.dart';
 import 'package:safarsure/data/seed/seed_data.dart';
 
 void main() {
@@ -24,5 +25,19 @@ void main() {
     expect(AppConstants.appName, 'SafarSure');
     expect(AppConstants.tagline, 'Travel protected');
     expect(AppConstants.demoOtp, '123456');
+  });
+
+  test('city aliases match canonical names', () {
+    expect(resolveCanonicalCity('Bangalore'), 'Bengaluru');
+    expect(resolveCanonicalCity('bombay'), 'Mumbai');
+    expect(resolveCanonicalCity('Trivandrum'), 'Thiruvananthapuram');
+    expect(cityMatches('ban', 'Bengaluru'), isTrue);
+    expect(cityMatches('Bangalore', 'Bengaluru'), isTrue);
+    expect(cityMatches('Madras', 'Chennai'), isTrue);
+  });
+
+  test('filterCities returns full list when query is empty', () {
+    expect(filterCities('').length, greaterThan(15));
+    expect(filterCities('ban'), contains('Bengaluru'));
   });
 }
