@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:safarsure/core/firebase/firebase_service.dart';
 import 'package:safarsure/core/router/app_router.dart';
 import 'package:safarsure/core/theme/app_theme.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await FirebaseService.initialize();
   runApp(const ProviderScope(child: SafarSureApp()));
 }
 

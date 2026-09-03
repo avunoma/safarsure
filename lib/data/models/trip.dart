@@ -14,6 +14,7 @@ class Trip {
     this.stops = const [],
     this.driverName = '',
     this.driverRating = 4.5,
+    this.driverRatingCount = 0,
   });
 
   final String id;
@@ -28,6 +29,7 @@ class Trip {
   final List<String> stops;
   final String driverName;
   final double driverRating;
+  final int driverRatingCount;
 
   Trip copyWith({
     String? id,
@@ -42,6 +44,7 @@ class Trip {
     List<String>? stops,
     String? driverName,
     double? driverRating,
+    int? driverRatingCount,
   }) {
     return Trip(
       id: id ?? this.id,
@@ -56,6 +59,7 @@ class Trip {
       stops: stops ?? this.stops,
       driverName: driverName ?? this.driverName,
       driverRating: driverRating ?? this.driverRating,
+      driverRatingCount: driverRatingCount ?? this.driverRatingCount,
     );
   }
 
@@ -72,6 +76,7 @@ class Trip {
         'stops': stops,
         'driverName': driverName,
         'driverRating': driverRating,
+        'driverRatingCount': driverRatingCount,
       };
 
   factory Trip.fromJson(Map<String, dynamic> json) {
@@ -91,6 +96,7 @@ class Trip {
           const [],
       driverName: json['driverName'] as String? ?? '',
       driverRating: (json['driverRating'] as num?)?.toDouble() ?? 4.5,
+      driverRatingCount: json['driverRatingCount'] as int? ?? 0,
     );
   }
 }

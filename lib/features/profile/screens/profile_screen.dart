@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:safarsure/core/constants/app_constants.dart';
 import 'package:safarsure/core/theme/app_colors.dart';
+import 'package:safarsure/core/utils/privacy.dart';
 import 'package:safarsure/data/models/user.dart';
 import 'package:safarsure/features/auth/providers/auth_provider.dart';
 
@@ -68,9 +69,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         Text(
-                          '${AppConstants.countryCode} ${user.phone}',
-                          style: Theme.of(context).textTheme.bodySmall,
+                          formatRating(user.rating, user.ratingCount),
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: AppColors.accent,
+                                fontWeight: FontWeight.w600,
+                              ),
                         ),
+                        if (user.phone.isNotEmpty)
+                          Text(
+                            '${AppConstants.countryCode} ${user.phone}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          )
+                        else if (user.email != null)
+                          Text(
+                            user.email!,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
                       ],
                     ),
                   ),

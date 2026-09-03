@@ -1,10 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:safarsure/core/firebase/firebase_service.dart';
 import 'package:safarsure/data/models/user.dart';
 import 'package:safarsure/data/repositories/app_repository.dart';
 
 final authStateProvider =
     StateNotifierProvider<AuthNotifier, AsyncValue<AppUser?>>((ref) {
   return AuthNotifier(ref);
+});
+
+final firebaseAvailableProvider = Provider<bool>((ref) {
+  return FirebaseService.isAvailable;
 });
 
 class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
@@ -23,18 +28,33 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
     }
   }
 
-  Future<void> login(String phone, String name) async {
+  Future<void> loginWithPhone(String phone, String name) async {
     final repo = await _ref.read(appRepositoryProvider.future);
     final user = AppUser(
       id: repo.generateId(),
       name: name.trim().isEmpty ? 'Traveller' : name.trim(),
       phone: phone,
+      authMethod: AuthMethod.phone,
     );
     await repo.saveUser(user);
     state = AsyncValue.data(user);
   }
 
+  Future<void> signInWithGoogle() async {
+    AppUser? user = await FirebaseService.signInWithGoogle();
+    user ??= AppUser(
+      id: (await _ref.read(appRepositoryProvider.future)).generateId(),
+      name: 'Demo Google User',
+      email: 'demo.user@gmail.com',
+      authMethod: AuthMethod.google,
+    );
+    final repo = await _ref.read(appRepositoryProvider.future);
+    await repo.saveUser(user);
+    state = AsyncValue.data(user);
+  }
+
   Future<void> logout() async {
+    await FirebaseService.signOut();
     final repo = await _ref.read(appRepositoryProvider.future);
     await repo.clearUser();
     state = const AsyncValue.data(null);
@@ -56,5 +76,10 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
     final repo = await _ref.read(appRepositoryProvider.future);
     await repo.saveUser(updated);
     state = AsyncValue.data(updated);
+  }
+
+  Future<void> refreshUser() async {
+    final repo = await _ref.read(appRepositoryProvider.future);
+    state = AsyncValue.data(repo.getCurrentUser());
   }
 }

@@ -37,7 +37,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
 
     setState(() => _loading = true);
     try {
-      await ref.read(authStateProvider.notifier).login(
+      await ref.read(authStateProvider.notifier).loginWithPhone(
             widget.phone,
             widget.name,
           );

@@ -15,6 +15,8 @@ import 'package:safarsure/features/trips/screens/my_rides_screen.dart';
 import 'package:safarsure/features/trips/screens/post_ride_screen.dart';
 import 'package:safarsure/features/trips/screens/trip_detail_screen.dart';
 import 'package:safarsure/features/trips/screens/trip_requests_screen.dart';
+import 'package:safarsure/features/chat/screens/chat_screen.dart';
+import 'package:safarsure/features/ratings/screens/rate_trip_screen.dart';
 import 'package:safarsure/core/widgets/main_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -145,6 +147,32 @@ final routerProvider = Provider<GoRouter>((ref) {
                       final requestId = state.pathParameters['requestId']!;
                       return RequestStatusScreen(requestId: requestId);
                     },
+                    routes: [
+                      GoRoute(
+                        path: 'chat',
+                        builder: (context, state) {
+                          final requestId =
+                              state.pathParameters['requestId']!;
+                          return ChatScreen(requestId: requestId);
+                        },
+                      ),
+                      GoRoute(
+                        path: 'rate',
+                        builder: (context, state) {
+                          final requestId =
+                              state.pathParameters['requestId']!;
+                          final extra =
+                              state.extra as Map<String, dynamic>? ?? {};
+                          return RateTripScreen(
+                            requestId: requestId,
+                            tripId: extra['tripId'] as String? ?? '',
+                            rateeId: extra['rateeId'] as String? ?? '',
+                            rateeLabel:
+                                extra['rateeLabel'] as String? ?? 'Traveller',
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),

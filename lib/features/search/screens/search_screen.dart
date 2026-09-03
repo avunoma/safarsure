@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:safarsure/core/theme/app_colors.dart';
-import 'package:safarsure/core/constants/indian_cities.dart';
-import 'package:safarsure/core/widgets/common_widgets.dart';
+import 'package:safarsure/core/widgets/place_autocomplete_field.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -87,17 +86,15 @@ class _SearchScreenState extends State<SearchScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              CityAutocompleteField(
+              PlaceAutocompleteField(
                 label: 'Pickup city',
                 controller: _fromController,
-                suggestions: indianCities,
                 icon: Icons.trip_origin,
               ),
               const SizedBox(height: 16),
-              CityAutocompleteField(
+              PlaceAutocompleteField(
                 label: 'Drop city',
                 controller: _toController,
-                suggestions: indianCities,
                 icon: Icons.location_on,
               ),
               const SizedBox(height: 16),

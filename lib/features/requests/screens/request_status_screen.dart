@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:safarsure/core/theme/app_colors.dart';
+import 'package:safarsure/core/utils/privacy.dart';
 import 'package:safarsure/core/widgets/common_widgets.dart';
 import 'package:safarsure/data/models/ride_request.dart';
 import 'package:safarsure/data/repositories/app_repository.dart';
+import 'package:safarsure/features/auth/providers/auth_provider.dart';
 
 class RequestStatusScreen extends ConsumerWidget {
   const RequestStatusScreen({super.key, required this.requestId});
@@ -14,6 +17,7 @@ class RequestStatusScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final repoAsync = ref.watch(appRepositoryProvider);
+    final user = ref.watch(authStateProvider).value;
     final dateFormat = DateFormat('EEE, d MMM · h:mm a');
 
     return Scaffold(
@@ -31,6 +35,15 @@ class RequestStatusScreen extends ConsumerWidget {
           if (trip == null) {
             return const Center(child: Text('Trip not found'));
           }
+
+          final confirmed = identityRevealed(request.status);
+          final driverSummary = repo.ratingSummaryForUser(
+            trip.driverId,
+            seedRating: trip.driverRating,
+            seedCount: trip.driverRatingCount,
+          );
+          final hasRated = user != null &&
+              repo.hasRated(request.id, user.id);
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20),
@@ -73,7 +86,9 @@ class RequestStatusScreen extends ConsumerWidget {
                         _InfoRow(
                           icon: Icons.person,
                           label: 'Driver',
-                          value: trip.driverName,
+                          value: confirmed
+                              ? '${revealedFirstName(trip.driverName)} · ${formatRating(driverSummary.average, driverSummary.count)}'
+                              : '${privatePartyLabel(isDriver: true)} · ${formatRating(trip.driverRating, trip.driverRatingCount > 0 ? trip.driverRatingCount : 12)}',
                         ),
                         _InfoRow(
                           icon: Icons.event_seat,
@@ -82,8 +97,9 @@ class RequestStatusScreen extends ConsumerWidget {
                         ),
                         _InfoRow(
                           icon: Icons.currency_rupee,
-                          label: 'Total',
-                          value: '₹${trip.pricePerSeat * request.seats}',
+                          label: 'Your share',
+                          value:
+                              '₹${trip.pricePerSeat * request.seats} (fuel + toll)',
                         ),
                         if (request.note.isNotEmpty)
                           _InfoRow(
@@ -95,7 +111,7 @@ class RequestStatusScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-                if (request.status == RequestStatus.confirmed) ...[
+                if (confirmed) ...[
                   const SizedBox(height: 16),
                   Card(
                     color: AppColors.success.withValues(alpha: 0.08),
@@ -135,6 +151,28 @@ class RequestStatusScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    onPressed: () =>
+                        context.push('/my-rides/request/$requestId/chat'),
+                    icon: const Icon(Icons.chat_bubble_outline),
+                    label: const Text('Chat with driver'),
+                  ),
+                  if (!hasRated) ...[
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: () => context.push(
+                        '/my-rides/request/$requestId/rate',
+                        extra: {
+                          'tripId': trip.id,
+                          'rateeId': trip.driverId,
+                          'rateeLabel': revealedFirstName(trip.driverName),
+                        },
+                      ),
+                      icon: const Icon(Icons.star_outline),
+                      label: const Text('Rate your trip'),
+                    ),
+                  ],
                 ],
                 if (request.status == RequestStatus.declined) ...[
                   const SizedBox(height: 16),
@@ -158,9 +196,9 @@ class RequestStatusScreen extends ConsumerWidget {
   String _statusMessage(RequestStatus status) {
     return switch (status) {
       RequestStatus.waiting =>
-        'Your request has been sent. Waiting for the driver to respond.',
+        'Your request has been sent. Driver details unlock after acceptance.',
       RequestStatus.confirmed =>
-        'Your seat is confirmed! Check pickup details below.',
+        'Your seat is confirmed! Pickup details and chat are now available.',
       RequestStatus.declined =>
         'Unfortunately, the driver declined your request.',
     };

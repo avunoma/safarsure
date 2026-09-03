@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:safarsure/core/theme/app_colors.dart';
+import 'package:safarsure/core/utils/privacy.dart';
 import 'package:safarsure/data/models/ride_request.dart';
 import 'package:safarsure/data/repositories/app_repository.dart';
+import 'package:safarsure/features/auth/providers/auth_provider.dart';
 import 'package:safarsure/features/trips/providers/trips_provider.dart';
 
 class TripDetailScreen extends ConsumerWidget {
@@ -20,6 +22,7 @@ class TripDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final repoAsync = ref.watch(appRepositoryProvider);
+    final user = ref.watch(authStateProvider).value;
     final dateFormat = DateFormat('EEE, d MMM yyyy · h:mm a');
 
     return Scaffold(
@@ -41,6 +44,24 @@ class TripDetailScreen extends ConsumerWidget {
                   .toList() ??
               [];
 
+          RideRequest? myRequest;
+          if (user != null && !isOwner) {
+            for (final r in repo.getRequests()) {
+              if (r.tripId == tripId && r.riderId == user.id) {
+                myRequest = r;
+                break;
+              }
+            }
+          }
+
+          final revealDriver =
+              isOwner || identityRevealed(myRequest?.status);
+          final driverLabel = revealDriver
+              ? revealedFirstName(trip.driverName)
+              : privatePartyLabel(isDriver: true);
+          final ratingCount =
+              trip.driverRatingCount > 0 ? trip.driverRatingCount : 12;
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -59,13 +80,16 @@ class TripDetailScreen extends ConsumerWidget {
                               backgroundColor:
                                   AppColors.primary.withValues(alpha: 0.15),
                               foregroundColor: AppColors.primary,
-                              child: Text(
-                                trip.driverName[0].toUpperCase(),
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                              child: revealDriver && trip.driverName.isNotEmpty
+                                  ? Text(
+                                      trip.driverName[0].toUpperCase(),
+                                      style: const TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    )
+                                  : const Icon(Icons.verified_user_outlined,
+                                      size: 28),
                             ),
                             const SizedBox(width: 16),
                             Expanded(
@@ -73,7 +97,7 @@ class TripDetailScreen extends ConsumerWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    trip.driverName,
+                                    driverLabel,
                                     style: const TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
@@ -84,9 +108,18 @@ class TripDetailScreen extends ConsumerWidget {
                                       const Icon(Icons.star,
                                           size: 16, color: AppColors.accent),
                                       const SizedBox(width: 4),
-                                      Text(trip.driverRating.toStringAsFixed(1)),
+                                      Text(
+                                        formatRating(
+                                            trip.driverRating, ratingCount),
+                                      ),
                                     ],
                                   ),
+                                  if (!revealDriver)
+                                    Text(
+                                      'Name unlocks after your request is accepted',
+                                      style:
+                                          Theme.of(context).textTheme.bodySmall,
+                                    ),
                                 ],
                               ),
                             ),
@@ -173,10 +206,12 @@ class TripDetailScreen extends ConsumerWidget {
                   ...confirmedPassengers.map(
                     (r) => ListTile(
                       leading: CircleAvatar(
-                        child: Text(r.riderName[0].toUpperCase()),
+                        child: Text(
+                            revealedFirstName(r.riderName)[0].toUpperCase()),
                       ),
-                      title: Text(r.riderName),
-                      subtitle: Text('${r.seats} seat${r.seats == 1 ? '' : 's'}'),
+                      title: Text(revealedFirstName(r.riderName)),
+                      subtitle: Text(
+                          '${r.seats} seat${r.seats == 1 ? '' : 's'}'),
                       tileColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
