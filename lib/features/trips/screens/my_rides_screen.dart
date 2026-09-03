@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:safarsure/core/providers/cloud_sync_provider.dart';
 import 'package:safarsure/core/theme/app_colors.dart';
 import 'package:safarsure/core/utils/privacy.dart';
 import 'package:safarsure/core/widgets/common_widgets.dart';
@@ -32,14 +33,88 @@ class MyRidesScreen extends ConsumerWidget {
       ),
       body: isDriver ? const _DriverRidesView() : const _RiderRidesView(),
       floatingActionButton: isDriver
-          ? FloatingActionButton.extended(
-              onPressed: () => context.push('/my-rides/post'),
-              icon: const Icon(Icons.add),
-              label: const Text('Post ride'),
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                FloatingActionButton.extended(
+                  heroTag: 'join-code',
+                  onPressed: () => _showJoinRideCodeDialog(context, ref),
+                  icon: const Icon(Icons.qr_code),
+                  label: const Text('Join ride code'),
+                ),
+                const SizedBox(height: 12),
+                FloatingActionButton.extended(
+                  heroTag: 'post-ride',
+                  onPressed: () => context.push('/my-rides/post'),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Post ride'),
+                ),
+              ],
             )
           : null,
     );
   }
+}
+
+Future<void> _showJoinRideCodeDialog(BuildContext context, WidgetRef ref) async {
+  final controller = TextEditingController();
+  final code = await showDialog<String>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Join ride by code'),
+      content: TextField(
+        controller: controller,
+        textCapitalization: TextCapitalization.characters,
+        decoration: const InputDecoration(
+          labelText: '6-character ride code',
+          hintText: 'From rider after they request',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, controller.text.trim()),
+          child: const Text('Join'),
+        ),
+      ],
+    ),
+  );
+  controller.dispose();
+
+  if (code == null || code.isEmpty || !context.mounted) return;
+
+  final cloudReady = ref.read(cloudSyncAvailableProvider);
+  if (!cloudReady) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Cloud sync is off. Run with DEMO_FIREBASE_PROJECT_ID and DEMO_FIREBASE_API_KEY.',
+        ),
+      ),
+    );
+    return;
+  }
+
+  final repo = await ref.read(appRepositoryProvider.future);
+  final request = await repo.importRequestBySyncCode(code);
+  ref.invalidate(requestsProvider);
+
+  if (!context.mounted) return;
+  if (request == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Ride code not found')),
+    );
+    return;
+  }
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Ride linked — open requests to accept')),
+  );
+  context.push('/my-rides/trip/${request.tripId}/requests');
 }
 
 class _RiderRidesView extends ConsumerWidget {

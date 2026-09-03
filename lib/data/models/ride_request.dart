@@ -12,6 +12,7 @@ class RideRequest {
     this.pickupPoint,
     this.pickupTime,
     this.createdAt,
+    this.syncCode,
   });
 
   final String id;
@@ -24,6 +25,7 @@ class RideRequest {
   final String? pickupPoint;
   final DateTime? pickupTime;
   final DateTime? createdAt;
+  final String? syncCode;
 
   RideRequest copyWith({
     String? id,
@@ -36,6 +38,7 @@ class RideRequest {
     String? pickupPoint,
     DateTime? pickupTime,
     DateTime? createdAt,
+    String? syncCode,
   }) {
     return RideRequest(
       id: id ?? this.id,
@@ -48,6 +51,7 @@ class RideRequest {
       pickupPoint: pickupPoint ?? this.pickupPoint,
       pickupTime: pickupTime ?? this.pickupTime,
       createdAt: createdAt ?? this.createdAt,
+      syncCode: syncCode ?? this.syncCode,
     );
   }
 
@@ -62,6 +66,7 @@ class RideRequest {
         'pickupPoint': pickupPoint,
         'pickupTime': pickupTime?.toIso8601String(),
         'createdAt': createdAt?.toIso8601String(),
+        'syncCode': syncCode,
       };
 
   factory RideRequest.fromJson(Map<String, dynamic> json) {
@@ -83,6 +88,7 @@ class RideRequest {
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : null,
+      syncCode: json['syncCode'] as String?,
     );
   }
 }

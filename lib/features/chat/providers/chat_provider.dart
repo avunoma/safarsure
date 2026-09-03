@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:safarsure/core/providers/cloud_sync_provider.dart';
 import 'package:safarsure/data/models/chat_message.dart';
 import 'package:safarsure/data/repositories/app_repository.dart';
+import 'package:safarsure/features/auth/providers/auth_provider.dart';
 
 final chatMessagesProvider =
     Provider.family<AsyncValue<List<ChatMessage>>, String>((ref, requestId) {
+  ref.watch(cloudSyncPollerProvider);
   final repoAsync = ref.watch(appRepositoryProvider);
   return repoAsync.whenData(
     (repo) => repo.getMessagesForRequest(requestId),
@@ -17,10 +22,38 @@ final chatNotifierProvider =
 });
 
 class ChatNotifier extends StateNotifier<AsyncValue<void>> {
-  ChatNotifier(this._ref, this._requestId) : super(const AsyncValue.data(null));
+  ChatNotifier(this._ref, this._requestId) : super(const AsyncValue.data(null)) {
+    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) => _pull());
+  }
 
   final Ref _ref;
   final String _requestId;
+  late final Timer _pollTimer;
+
+  Future<void> _pull() async {
+    final repo = await _ref.read(appRepositoryProvider.future);
+    final request = repo.getRequestById(_requestId);
+    if (request == null) return;
+
+    final user = _ref.read(authStateProvider).value;
+    if (user == null) return;
+
+    final driverTrips = repo
+        .getTrips()
+        .where((t) => t.driverId == user.id)
+        .map((t) => t.id)
+        .toList();
+
+    final changed = await repo.syncFromCloud(
+      driverTripIds: driverTrips,
+      riderUserId: user.id,
+    );
+
+    if (changed) {
+      _ref.invalidate(chatMessagesProvider(_requestId));
+      _ref.invalidate(appRepositoryProvider);
+    }
+  }
 
   Future<void> send({
     required String senderId,
@@ -42,5 +75,11 @@ class ChatNotifier extends StateNotifier<AsyncValue<void>> {
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }
+  }
+
+  @override
+  void dispose() {
+    _pollTimer.cancel();
+    super.dispose();
   }
 }
