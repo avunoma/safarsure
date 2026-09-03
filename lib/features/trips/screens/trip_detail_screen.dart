@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:safarsure/core/theme/app_colors.dart';
-import 'package:safarsure/core/widgets/price_comparison.dart';
 import 'package:safarsure/data/models/ride_request.dart';
 import 'package:safarsure/data/repositories/app_repository.dart';
 import 'package:safarsure/features/trips/providers/trips_provider.dart';
@@ -134,12 +133,17 @@ class TripDetailScreen extends ConsumerWidget {
                           value:
                               '${trip.seatsAvailable} of ${trip.seatsTotal} available',
                         ),
+                        const SizedBox(height: 12),
+                        _DetailRow(
+                          icon: Icons.currency_rupee,
+                          label: 'Your share',
+                          value: '₹${trip.pricePerSeat} per seat',
+                          subtitle: 'fuel + toll share',
+                        ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                PriceComparison(trip: trip),
                 const SizedBox(height: 16),
                 Container(
                   height: 120,
@@ -216,12 +220,14 @@ class _DetailRow extends StatelessWidget {
     required this.label,
     required this.value,
     this.iconColor,
+    this.subtitle,
   });
 
   final IconData icon;
   final String label;
   final String value;
   final Color? iconColor;
+  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -242,6 +248,14 @@ class _DetailRow extends StatelessWidget {
                 value,
                 style: const TextStyle(fontWeight: FontWeight.w500),
               ),
+              if (subtitle != null)
+                Text(
+                  subtitle!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontSize: 11,
+                        color: AppColors.charcoalMuted,
+                      ),
+                ),
             ],
           ),
         ),

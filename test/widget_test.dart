@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:safarsure/core/constants/app_constants.dart';
-import 'package:safarsure/core/pricing/fare_estimator.dart';
 import 'package:safarsure/data/seed/seed_data.dart';
 
 void main() {
@@ -19,13 +18,6 @@ void main() {
     for (final trip in soon) {
       expect(isLeavingSoonTrip(trip, now), isTrue);
     }
-  });
-
-  test('Ola estimate is much higher than cost-share for known routes', () {
-    final ola = FareEstimator.estimateOlaFare('Mumbai', 'Pune');
-    const share = 450;
-    expect(ola, greaterThan(share * 3));
-    expect(FareEstimator.savingsPercent(ola, share), greaterThan(50));
   });
 
   test('app constants are set', () {

@@ -137,7 +137,7 @@ class HomeScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Trips departing soon — compare your share vs Ola',
+                'Trips departing in the next 2 hours',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 12),

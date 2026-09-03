@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:safarsure/core/theme/app_colors.dart';
-import 'package:safarsure/core/widgets/price_comparison.dart';
 import 'package:safarsure/data/models/ride_request.dart';
 import 'package:safarsure/data/models/trip.dart';
 
@@ -143,6 +142,7 @@ class TripCard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Icon(Icons.schedule,
                       size: 16, color: AppColors.charcoalMuted),
@@ -169,10 +169,29 @@ class TripCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '₹${trip.pricePerSeat}/seat',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        'fuel + toll share',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              fontSize: 10,
+                              color: AppColors.charcoalMuted,
+                            ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
-              const SizedBox(height: 12),
-              PriceComparison(trip: trip, compact: true),
             ],
           ),
         ),
