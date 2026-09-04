@@ -30,6 +30,7 @@ class _PlaceAutocompleteFieldState
   bool _loading = false;
   bool _showSuggestions = false;
   bool _selecting = false;
+  String? _mapsErrorHint;
   Timer? _debounce;
 
   @override
@@ -80,7 +81,8 @@ class _PlaceAutocompleteFieldState
     final results = await service.autocomplete(query);
     if (mounted) {
       setState(() {
-        _suggestions = results;
+        _suggestions = results.suggestions;
+        _mapsErrorHint = results.mapsErrorHint;
         _loading = false;
         _showSuggestions = true;
       });
@@ -141,6 +143,15 @@ class _PlaceAutocompleteFieldState
             _loadSuggestions(widget.controller.text);
           },
         ),
+        if (_mapsErrorHint != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            _mapsErrorHint!,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.charcoalMuted,
+                ),
+          ),
+        ],
         if (_showSuggestions) ...[
           const SizedBox(height: 8),
           Material(

@@ -65,18 +65,19 @@ flutter run --dart-define=FIREBASE_ENABLED=true
 
 ## Optional: Google Places autocomplete
 
-Enable **Places API** and **Maps JavaScript API** on your Google Cloud project (same project as Firebase `safarsure-419df` is fine). Create a browser-restricted API key for local dev.
+Enable **[Places API (New)](https://console.developers.google.com/apis/api/places.googleapis.com/overview?project=safarsure-419df)** and **[Maps JavaScript API](https://console.cloud.google.com/apis/library/maps-backend.googleapis.com?project=safarsure-419df)** on your Google Cloud project (Firebase project `safarsure-419df` / numeric `230324608556` is fine). Create a browser-restricted API key for local dev.
 
 ```bash
 flutter run -d chrome \
   --dart-define=MAPS_API_KEY=your_browser_key_here
 ```
 
-- **Web (Chrome):** Maps JavaScript `AutocompleteService` via `web/places_bridge.js` (Places REST is blocked by CORS in the browser).
-- **Android / iOS:** Places REST with the same `MAPS_API_KEY`.
+- **Web (Chrome):** tries Places API (New) REST first; if CORS blocks, falls back to Maps JavaScript `AutocompleteSuggestion.fetchAutocompleteSuggestions` via `web/places_bridge.js`.
+- **Android / iOS:** Places API (New) REST (`places.googleapis.com/v1/places:autocomplete`) with the same `MAPS_API_KEY`.
 - **No key:** expanded local Indian city list with aliases; full scrollable list on focus.
+- If the key is set but the API is disabled, the field shows a hint to enable Places API (New); local cities still work.
 
-Restrict the key to Places API + Maps JavaScript API and your app origins/bundle IDs.
+Restrict the key to Places API (New) + Maps JavaScript API and your app origins/bundle IDs.
 
 ## Demo walkthrough (single device)
 

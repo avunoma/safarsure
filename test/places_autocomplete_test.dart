@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:safarsure/core/cloud/firestore_rest_client.dart';
+import 'package:safarsure/core/services/places/places_api_result.dart';
+import 'package:safarsure/core/services/places/places_google_new_client.dart';
 import 'package:safarsure/core/services/places/places_utils.dart';
 import 'package:safarsure/core/widgets/place_autocomplete_field.dart';
 
@@ -41,6 +46,77 @@ void main() {
 
     test('empty query returns full scrollable local list', () {
       expect(localPlaceSuggestions('').length, greaterThan(15));
+    });
+  });
+
+  group('Places API (New) parsing', () {
+    test('parses autocomplete response into PlaceSuggestion list', () {
+      const body = '''
+{
+  "suggestions": [
+    {
+      "placePrediction": {
+        "placeId": "abc123",
+        "text": { "text": "Koramangala, Bengaluru, Karnataka, India" },
+        "structuredFormat": {
+          "mainText": { "text": "Koramangala" },
+          "secondaryText": { "text": "Bengaluru, Karnataka, India" }
+        }
+      }
+    }
+  ]
+}
+''';
+
+      final result = parsePlacesNewAutocompleteBody(body);
+      expect(result.suggestions, hasLength(1));
+      expect(result.suggestions.first.canonicalName, 'Koramangala');
+      expect(result.suggestions.first.placeId, 'abc123');
+      expect(result.errorHint, isNull);
+    });
+
+    test('maps SERVICE_DISABLED to enable hint', () {
+      const body = '''
+{
+  "error": {
+    "code": 403,
+    "message": "Places API (New) has not been used in project before or it is disabled.",
+    "status": "PERMISSION_DENIED"
+  }
+}
+''';
+
+      final result = parsePlacesNewAutocompleteError(403, body);
+      expect(result.suggestions, isEmpty);
+      expect(result.errorHint, contains('Places API (New)'));
+    });
+  });
+
+  group('mapsErrorHintFromGoogleStatus', () {
+    test('surfaces permission denied for legacy API message', () {
+      expect(
+        mapsErrorHintFromGoogleStatus(
+          'REQUEST_DENIED',
+          403,
+          'Legacy API not enabled',
+        ),
+        contains('Places API (New)'),
+      );
+    });
+  });
+
+  group('FirestoreRestClient quota handling', () {
+    test('listCollection returns empty list on 429 and backs off', () async {
+      final client = FirestoreRestClient(
+        projectId: 'demo',
+        apiKey: 'key',
+        client: MockClient((request) async {
+          return http.Response('Quota exceeded', 429);
+        }),
+      );
+
+      expect(await client.listCollection('trips'), isEmpty);
+      expect(await client.listCollection('trips'), isEmpty);
     });
   });
 

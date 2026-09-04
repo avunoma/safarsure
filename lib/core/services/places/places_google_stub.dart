@@ -1,5 +1,5 @@
-import 'package:safarsure/core/services/places/place_suggestion.dart';
+import 'package:safarsure/core/services/places/places_api_result.dart';
 
-Future<List<PlaceSuggestion>> fetchGooglePlaceSuggestions(String query) async {
-  return [];
+Future<PlacesGoogleResult> fetchGooglePlaceSuggestions(String query) async {
+  return const PlacesGoogleResult();
 }
