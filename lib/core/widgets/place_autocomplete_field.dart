@@ -28,7 +28,8 @@ class _PlaceAutocompleteFieldState
   final _focusNode = FocusNode();
   List<PlaceSuggestion> _suggestions = const [];
   bool _loading = false;
-  bool _focused = false;
+  bool _showSuggestions = false;
+  bool _selecting = false;
   Timer? _debounce;
 
   @override
@@ -48,14 +49,24 @@ class _PlaceAutocompleteFieldState
   }
 
   void _onFocusChanged() {
-    setState(() => _focused = _focusNode.hasFocus);
+    if (_selecting) return;
+
     if (_focusNode.hasFocus) {
+      setState(() => _showSuggestions = true);
       _loadSuggestions(widget.controller.text);
+      return;
     }
+
+    // Web: focus leaves the TextField before ListTile onTap/onPointerDown.
+    // Keep the list briefly so pointer selection can complete.
+    Future<void>.delayed(const Duration(milliseconds: 200), () {
+      if (!mounted || _selecting || _focusNode.hasFocus) return;
+      setState(() => _showSuggestions = false);
+    });
   }
 
   void _onTextChanged() {
-    if (!_focused) return;
+    if (!_showSuggestions && !_focusNode.hasFocus) return;
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 200), () {
       _loadSuggestions(widget.controller.text);
@@ -63,6 +74,7 @@ class _PlaceAutocompleteFieldState
   }
 
   Future<void> _loadSuggestions(String query) async {
+    if (!mounted) return;
     setState(() => _loading = true);
     final service = ref.read(placesServiceProvider);
     final results = await service.autocomplete(query);
@@ -70,23 +82,26 @@ class _PlaceAutocompleteFieldState
       setState(() {
         _suggestions = results;
         _loading = false;
+        _showSuggestions = true;
       });
     }
   }
 
   void _selectSuggestion(PlaceSuggestion suggestion) {
-    widget.controller.text = suggestion.description;
+    _selecting = true;
+    widget.controller.text = suggestion.canonicalName;
     setState(() {
-      _focused = false;
+      _showSuggestions = false;
       _suggestions = const [];
     });
     _focusNode.unfocus();
+    Future<void>.delayed(const Duration(milliseconds: 50), () {
+      _selecting = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final showList = _focused;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -105,10 +120,13 @@ class _PlaceAutocompleteFieldState
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   )
-                : (_focused
+                : (_showSuggestions
                     ? IconButton(
                         icon: const Icon(Icons.keyboard_hide),
-                        onPressed: () => _focusNode.unfocus(),
+                        onPressed: () {
+                          setState(() => _showSuggestions = false);
+                          _focusNode.unfocus();
+                        },
                       )
                     : null),
           ),
@@ -119,45 +137,72 @@ class _PlaceAutocompleteFieldState
             return null;
           },
           onTap: () {
-            if (!_focused) {
-              _loadSuggestions(widget.controller.text);
-            }
+            setState(() => _showSuggestions = true);
+            _loadSuggestions(widget.controller.text);
           },
         ),
-        if (showList) ...[
+        if (_showSuggestions) ...[
           const SizedBox(height: 8),
           Material(
             elevation: 1,
             borderRadius: BorderRadius.circular(12),
             color: Colors.white,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 220),
-              child: _suggestions.isEmpty
+              constraints: const BoxConstraints(maxHeight: 260),
+              child: _loading && _suggestions.isEmpty
                   ? const Padding(
                       padding: EdgeInsets.all(16),
-                      child: Text(
-                        'Type to filter cities…',
-                        style: TextStyle(color: AppColors.charcoalMuted),
+                      child: Center(
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
                       ),
                     )
-                  : ListView.separated(
-                      shrinkWrap: true,
-                      padding: EdgeInsets.zero,
-                      itemCount: _suggestions.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final suggestion = _suggestions[index];
-                        return ListTile(
-                          dense: true,
-                          leading: const Icon(
-                            Icons.location_on_outlined,
-                            size: 20,
-                            color: AppColors.primary,
+                  : _suggestions.isEmpty
+                      ? const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Text(
+                            'No matching cities',
+                            style: TextStyle(color: AppColors.charcoalMuted),
                           ),
-                          title: Text(suggestion.description),
-                          onTap: () => _selectSuggestion(suggestion),
-                        );
-                      },
+                        )
+                  : Scrollbar(
+                      thumbVisibility: _suggestions.length > 6,
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        padding: EdgeInsets.zero,
+                        itemCount: _suggestions.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final suggestion = _suggestions[index];
+                          return Listener(
+                            behavior: HitTestBehavior.opaque,
+                            onPointerDown: (_) =>
+                                _selectSuggestion(suggestion),
+                            child: ListTile(
+                              dense: true,
+                              leading: const Icon(
+                                Icons.location_on_outlined,
+                                size: 20,
+                                color: AppColors.primary,
+                              ),
+                              title: Text(suggestion.displayLabel),
+                              subtitle:
+                                  suggestion.displayLabel !=
+                                          suggestion.canonicalName
+                                      ? Text(
+                                          suggestion.canonicalName,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall,
+                                        )
+                                      : null,
+                            ),
+                          );
+                        },
+                      ),
                     ),
             ),
           ),

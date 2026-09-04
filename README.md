@@ -8,7 +8,7 @@
 - **Privacy** — Driver/rider names, phone, and chat hidden until a seat request is **accepted**
 - **Ratings** — 1–5 stars + optional comment after a confirmed trip (both sides)
 - **Chat** — Unlocks after confirmation; syncs across two phones via shared cloud (Firestore REST or SDK)
-- **Places** — Inline city picker with aliases (Bangalore→Bengaluru, etc.); optional Google Places merge
+- **Places** — Inline city picker (local cities + Google Places on web via JS API)
 - **Search sorting** — Soonest (default), lowest share price, or highest driver rating
 - **Leaving soon** — Trips departing in the next 2 hours on Home + search filter
 - **Dual role** — Rider / Driver switch in Profile on one install
@@ -65,9 +65,18 @@ flutter run --dart-define=FIREBASE_ENABLED=true
 
 ## Optional: Google Places autocomplete
 
+Enable **Places API** and **Maps JavaScript API** on your Google Cloud project (same project as Firebase `safarsure-419df` is fine). Create a browser-restricted API key for local dev.
+
 ```bash
-flutter run --dart-define=MAPS_API_KEY=your_key_here
+flutter run -d chrome \
+  --dart-define=MAPS_API_KEY=your_browser_key_here
 ```
+
+- **Web (Chrome):** Maps JavaScript `AutocompleteService` via `web/places_bridge.js` (Places REST is blocked by CORS in the browser).
+- **Android / iOS:** Places REST with the same `MAPS_API_KEY`.
+- **No key:** expanded local Indian city list with aliases; full scrollable list on focus.
+
+Restrict the key to Places API + Maps JavaScript API and your app origins/bundle IDs.
 
 ## Demo walkthrough (single device)
 
