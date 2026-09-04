@@ -17,8 +17,6 @@ abstract class CloudSyncService {
 
   Future<List<RideRequest>> fetchRequestsForTrip(String tripId);
 
-  Future<RideRequest?> fetchRequestBySyncCode(String syncCode);
-
   Future<RideRequest?> fetchRequestById(String requestId);
 
   Future<void> sendMessage(ChatMessage message);
@@ -59,7 +57,6 @@ Map<String, dynamic> requestToMap(RideRequest request) => {
       'pickupPoint': request.pickupPoint,
       'pickupTime': request.pickupTime?.toIso8601String(),
       'createdAt': request.createdAt?.toIso8601String(),
-      'syncCode': request.syncCode,
     };
 
 RideRequest requestFromMap(Map<String, dynamic> map) {
@@ -81,7 +78,6 @@ RideRequest requestFromMap(Map<String, dynamic> map) {
     createdAt: map['createdAt'] != null
         ? DateTime.parse(map['createdAt'] as String)
         : null,
-    syncCode: map['syncCode'] as String?,
   );
 }
 

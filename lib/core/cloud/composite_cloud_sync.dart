@@ -70,12 +70,6 @@ class CompositeCloudSyncService implements CloudSyncService {
   }
 
   @override
-  Future<RideRequest?> fetchRequestBySyncCode(String syncCode) async {
-    if (!isAvailable) return null;
-    return _service.fetchRequestBySyncCode(syncCode);
-  }
-
-  @override
   Future<RideRequest?> fetchRequestById(String requestId) async {
     if (!isAvailable) return null;
     return _service.fetchRequestById(requestId);
@@ -112,9 +106,6 @@ class NoOpCloudSyncService implements CloudSyncService {
 
   @override
   Future<List<RideRequest>> fetchRequestsForTrip(String tripId) async => [];
-
-  @override
-  Future<RideRequest?> fetchRequestBySyncCode(String syncCode) async => null;
 
   @override
   Future<RideRequest?> fetchRequestById(String requestId) async => null;

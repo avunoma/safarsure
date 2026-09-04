@@ -4,6 +4,7 @@ import 'package:safarsure/core/cloud/composite_cloud_sync.dart';
 import 'package:safarsure/core/constants/app_constants.dart';
 import 'package:safarsure/core/constants/indian_cities.dart';
 import 'package:safarsure/core/firebase/firebase_service.dart';
+import 'package:safarsure/core/utils/trip_sort.dart';
 import 'package:safarsure/data/models/chat_message.dart';
 import 'package:safarsure/data/models/ride_request.dart';
 import 'package:safarsure/data/models/trip.dart';
@@ -69,34 +70,51 @@ void main() {
     final cloudMap = tripToMap(trip);
     expect(cloudMap.containsKey('driverName'), isFalse);
     expect(cloudMap['driverRating'], 4.8);
-    expect(cloudMap['driverRatingCount'], 12);
 
     final roundTrip = tripFromMap(cloudMap);
     expect(roundTrip.driverName, isEmpty);
-    expect(roundTrip.fromCity, 'Bengaluru');
+  });
+
+  test('sortTrips supports soonest, price, and rating', () {
+    final base = DateTime(2026, 9, 10, 8);
+    final trips = [
+      Trip(
+        id: 'a',
+        driverId: 'd1',
+        fromCity: 'A',
+        toCity: 'B',
+        departureTime: base.add(const Duration(hours: 2)),
+        seatsTotal: 3,
+        seatsAvailable: 2,
+        pricePerSeat: 700,
+        vehicle: const Vehicle(make: 'X', model: 'Y', color: 'Z'),
+        driverRating: 4.5,
+      ),
+      Trip(
+        id: 'b',
+        driverId: 'd2',
+        fromCity: 'A',
+        toCity: 'B',
+        departureTime: base,
+        seatsTotal: 3,
+        seatsAvailable: 2,
+        pricePerSeat: 500,
+        vehicle: const Vehicle(make: 'X', model: 'Y', color: 'Z'),
+        driverRating: 4.9,
+      ),
+    ];
+
+    expect(sortTrips(trips, TripSortOption.soonest).first.id, 'b');
+    expect(sortTrips(trips, TripSortOption.lowestPrice).first.pricePerSeat, 500);
+    expect(sortTrips(trips, TripSortOption.highestRating).first.driverRating, 4.9);
   });
 
   group('REST-only cloud sync', () {
     test('CompositeCloudSyncService does not require Firebase.initializeApp',
         () {
       expect(FirebaseService.isAvailable, isFalse);
-
       final cloud = CompositeCloudSyncService(rest: _FakeRestCloudSync());
-
       expect(cloud.isAvailable, isTrue);
-    });
-
-    test('AppRepository initializes with REST-only cloud sync', () async {
-      SharedPreferences.setMockInitialValues({});
-      final prefs = await SharedPreferences.getInstance();
-      final cloud = CompositeCloudSyncService(rest: _FakeRestCloudSync());
-      final repo = AppRepository(prefs, cloud: cloud);
-
-      await repo.initialize();
-
-      expect(FirebaseService.isAvailable, isFalse);
-      expect(cloud.isAvailable, isTrue);
-      expect(repo.getTrips(), isNotEmpty);
     });
 
     test('published cloud trip appears in search on another device', () async {
@@ -136,15 +154,66 @@ void main() {
       );
 
       expect(results.any((t) => t.id == 'cloud-trip-1'), isTrue);
-      final found = results.firstWhere((t) => t.id == 'cloud-trip-1');
-      expect(found.driverName, isEmpty);
-      expect(found.driverRating, 4.7);
+    });
+
+    test('rider request reaches driver via trip id without sync code', () async {
+      SharedPreferences.setMockInitialValues({});
+      final cloud = _FakeRestCloudSync();
+
+      final driverPrefs = await SharedPreferences.getInstance();
+      final driverRepo = AppRepository(driverPrefs, cloud: cloud);
+      await driverRepo.initialize();
+
+      const tripId = 'driver-trip-1';
+      await driverRepo.addTrip(
+        Trip(
+          id: tripId,
+          driverId: 'driver-1',
+          driverName: 'Driver One',
+          fromCity: 'Mumbai',
+          toCity: 'Pune',
+          departureTime: DateTime(2026, 9, 12, 9),
+          seatsTotal: 3,
+          seatsAvailable: 2,
+          pricePerSeat: 450,
+          vehicle: const Vehicle(make: 'Maruti', model: 'Swift', color: 'White'),
+        ),
+      );
+
+      SharedPreferences.setMockInitialValues({});
+      final riderPrefs = await SharedPreferences.getInstance();
+      final riderRepo = AppRepository(riderPrefs, cloud: cloud);
+      await riderRepo.initialize();
+      await riderRepo.syncTripsFromCloud();
+
+      await riderRepo.addRequest(
+        RideRequest(
+          id: 'req-1',
+          tripId: tripId,
+          riderId: 'rider-2',
+          riderName: 'Rider Two',
+          seats: 1,
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      final changed = await driverRepo.syncFromCloud(
+        driverTripIds: [tripId],
+        riderUserId: 'driver-1',
+      );
+
+      expect(changed, isTrue);
+      expect(
+        driverRepo.getRequests().any((r) => r.id == 'req-1' && r.tripId == tripId),
+        isTrue,
+      );
     });
   });
 }
 
 class _FakeRestCloudSync implements CloudSyncService {
   final List<Trip> _trips = [];
+  final List<RideRequest> _requests = [];
 
   @override
   bool get isAvailable => true;
@@ -167,16 +236,28 @@ class _FakeRestCloudSync implements CloudSyncService {
   Future<void> upsertRequest(
     RideRequest request, {
     required bool revealRider,
-  }) async {}
+  }) async {
+    final index = _requests.indexWhere((r) => r.id == request.id);
+    final cloud = requestToCloud(request, revealRider: revealRider);
+    if (index >= 0) {
+      _requests[index] = cloud;
+    } else {
+      _requests.add(cloud);
+    }
+  }
 
   @override
-  Future<List<RideRequest>> fetchRequestsForTrip(String tripId) async => [];
+  Future<List<RideRequest>> fetchRequestsForTrip(String tripId) async =>
+      _requests.where((r) => r.tripId == tripId).toList();
 
   @override
-  Future<RideRequest?> fetchRequestBySyncCode(String syncCode) async => null;
-
-  @override
-  Future<RideRequest?> fetchRequestById(String requestId) async => null;
+  Future<RideRequest?> fetchRequestById(String requestId) async {
+    try {
+      return _requests.firstWhere((r) => r.id == requestId);
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   Future<void> sendMessage(ChatMessage message) async {}

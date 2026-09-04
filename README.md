@@ -9,6 +9,7 @@
 - **Ratings** — 1–5 stars + optional comment after a confirmed trip (both sides)
 - **Chat** — Unlocks after confirmation; syncs across two phones via shared cloud (Firestore REST or SDK)
 - **Places** — Inline city picker with aliases (Bangalore→Bengaluru, etc.); optional Google Places merge
+- **Search sorting** — Soonest (default), lowest share price, or highest driver rating
 - **Leaving soon** — Trips departing in the next 2 hours on Home + search filter
 - **Dual role** — Rider / Driver switch in Profile on one install
 
@@ -32,15 +33,12 @@ Demo login:
 
 City search works offline: tap Pickup → full city list appears; type `ban` → Bengaluru (Bangalore).
 
-## Two-phone demo (shared cloud)
+## Two-phone demo (no codes — automatic discovery)
 
-Requests, trips, and chat sync via **Firestore** (REST when Firebase SDK is not configured). No `google-services.json` needed for REST mode.
+Trips, seat requests, and chat sync via **Firestore REST** (no `google-services.json` required when using demo dart-defines).
 
-Published trips are upserted to the `trips` collection (driver name omitted; aggregate rating kept). Other devices merge cloud trips on init and every 2s poll, so search finds newly posted rides.
-
-1. Create a Firebase project (or use a shared team demo project) with Firestore in **test mode** / open rules for MVP
-2. Enable Firestore API; copy the **Web API key** and **project ID** (client keys are not server secrets)
-3. Run on both phones with the same dart-defines:
+1. Create a Firebase project with Firestore (test-mode rules OK for MVP)
+2. Run **both phones** with the same dart-defines:
 
 ```bash
 flutter run \
@@ -49,29 +47,21 @@ flutter run \
   --dart-define=DEMO_FIREBASE_API_KEY=your-web-api-key
 ```
 
-**Flow:**
-1. Phone A (rider) — search Bengaluru → Chennai, request a seat → note the **ride sync code**
-2. Phone B (driver) — switch to Driver → **Join ride code** → enter code → accept request
-3. Both phones — chat updates within ~2 seconds
+**Flow (straightforward booking):**
+1. **Phone A (driver)** — login as User A → Profile → Driver → Post ride (e.g. Mumbai → Pune, tomorrow 9am)
+2. **Phone B (rider)** — login as User B → Search same route/date → see Phone A's ride → Request seat
+3. **Phone A** — My rides → open trip → see incoming request → Accept (within ~2s via cloud poll)
+4. **Both** — chat + ratings unlock after accept; identities revealed per privacy rules
 
-With `FIREBASE_ENABLED=true` and FlutterFire config, the native Firestore SDK is used instead of REST.
+No sync codes or manual pairing required.
 
 ## Optional: Firebase + Google Sign-In
 
-1. Create a Firebase project and add Android + iOS apps (`com.safarsure.safarsure`)
-2. Download config files (do **not** commit them):
-   - `android/app/google-services.json`
-   - `ios/Runner/GoogleService-Info.plist`
-3. Run FlutterFire CLI:
-   ```bash
-   dart pub global activate flutterfire_cli
-   flutterfire configure
-   ```
-4. Enable **Google** sign-in in Firebase Authentication
-5. Run with Firebase enabled:
-   ```bash
-   flutter run --dart-define=FIREBASE_ENABLED=true
-   ```
+See earlier sections in repo history or enable with:
+
+```bash
+flutter run --dart-define=FIREBASE_ENABLED=true
+```
 
 ## Optional: Google Places autocomplete
 
@@ -79,32 +69,13 @@ With `FIREBASE_ENABLED=true` and FlutterFire config, the native Firestore SDK is
 flutter run --dart-define=MAPS_API_KEY=your_key_here
 ```
 
-Google results merge into the inline city list. Without a key, the expanded local Indian city list is used.
-
 ## Demo walkthrough (single device)
 
 1. **Login** — Google demo or phone OTP
-2. **Rider** — Home → search (type `Bangalore` for Bengaluru trips) → request a seat
+2. **Rider** — Home → search → sort by Soonest / Price / Rating → request a seat
 3. **Profile** → switch to **Driver**
 4. **Driver** — My rides → accept request → chat + rate rider
 5. **Profile** → switch back to **Rider** → My rides → see driver first name, chat, rate trip
-
-## Project structure
-
-```
-lib/
-├── core/           # config, theme, router, firebase, places, cloud sync, privacy
-├── data/           # models, repository, seed data
-└── features/
-    ├── auth/       # login, OTP, Google
-    ├── chat/       # post-confirm messaging (cloud + local cache)
-    ├── home/       # leaving soon, search CTA
-    ├── profile/    # role switch, ratings display
-    ├── ratings/    # post-trip star rating
-    ├── requests/   # seat request & status
-    ├── search/     # trip search & results
-    └── trips/      # trip details, post ride, driver requests
-```
 
 ## Analysis
 

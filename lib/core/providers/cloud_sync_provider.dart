@@ -39,9 +39,8 @@ class CloudSyncPoller extends StateNotifier<int> {
 
     if (changed) {
       state++;
-      _ref.invalidate(requestsProvider);
-      _ref.invalidate(appRepositoryProvider);
-      _ref.invalidate(tripsProvider);
+      await _ref.read(tripsProvider.notifier).refresh();
+      await _ref.read(requestsProvider.notifier).refresh();
     }
   }
 

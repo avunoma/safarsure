@@ -51,7 +51,6 @@ class ChatNotifier extends StateNotifier<AsyncValue<void>> {
 
     if (changed) {
       _ref.invalidate(chatMessagesProvider(_requestId));
-      _ref.invalidate(appRepositoryProvider);
     }
   }
 

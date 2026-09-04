@@ -33,88 +33,14 @@ class MyRidesScreen extends ConsumerWidget {
       ),
       body: isDriver ? const _DriverRidesView() : const _RiderRidesView(),
       floatingActionButton: isDriver
-          ? Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                FloatingActionButton.extended(
-                  heroTag: 'join-code',
-                  onPressed: () => _showJoinRideCodeDialog(context, ref),
-                  icon: const Icon(Icons.qr_code),
-                  label: const Text('Join ride code'),
-                ),
-                const SizedBox(height: 12),
-                FloatingActionButton.extended(
-                  heroTag: 'post-ride',
-                  onPressed: () => context.push('/my-rides/post'),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Post ride'),
-                ),
-              ],
+          ? FloatingActionButton.extended(
+              onPressed: () => context.push('/my-rides/post'),
+              icon: const Icon(Icons.add),
+              label: const Text('Post ride'),
             )
           : null,
     );
   }
-}
-
-Future<void> _showJoinRideCodeDialog(BuildContext context, WidgetRef ref) async {
-  final controller = TextEditingController();
-  final code = await showDialog<String>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Join ride by code'),
-      content: TextField(
-        controller: controller,
-        textCapitalization: TextCapitalization.characters,
-        decoration: const InputDecoration(
-          labelText: '6-character ride code',
-          hintText: 'From rider after they request',
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: () => Navigator.pop(context, controller.text.trim()),
-          child: const Text('Join'),
-        ),
-      ],
-    ),
-  );
-  controller.dispose();
-
-  if (code == null || code.isEmpty || !context.mounted) return;
-
-  final cloudReady = ref.read(cloudSyncAvailableProvider);
-  if (!cloudReady) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Cloud sync is off. Run with DEMO_FIREBASE_PROJECT_ID and DEMO_FIREBASE_API_KEY.',
-        ),
-      ),
-    );
-    return;
-  }
-
-  final repo = await ref.read(appRepositoryProvider.future);
-  final request = await repo.importRequestBySyncCode(code);
-  ref.invalidate(requestsProvider);
-
-  if (!context.mounted) return;
-  if (request == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Ride code not found')),
-    );
-    return;
-  }
-
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('Ride linked — open requests to accept')),
-  );
-  context.push('/my-rides/trip/${request.tripId}/requests');
 }
 
 class _RiderRidesView extends ConsumerWidget {
@@ -122,6 +48,7 @@ class _RiderRidesView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(cloudSyncPollerProvider);
     final requestsAsync = ref.watch(myRiderRequestsProvider);
     final repoAsync = ref.watch(appRepositoryProvider);
 
@@ -226,6 +153,7 @@ class _DriverRidesView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(cloudSyncPollerProvider);
     final tripsAsync = ref.watch(myDriverTripsProvider);
     final requestsAsync = ref.watch(requestsProvider);
 
@@ -237,7 +165,8 @@ class _DriverRidesView extends ConsumerWidget {
           return EmptyState(
             icon: Icons.directions_car_outlined,
             title: 'No rides posted',
-            subtitle: 'Post your first ride to start receiving seat requests.',
+            subtitle:
+                'Post a ride — riders on other phones will see it in search automatically.',
             action: ElevatedButton(
               onPressed: () => context.push('/my-rides/post'),
               child: const Text('Post a ride'),

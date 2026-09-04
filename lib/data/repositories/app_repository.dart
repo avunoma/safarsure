@@ -118,13 +118,10 @@ class AppRepository {
   }
 
   Future<RideRequest> addRequest(RideRequest request) async {
-    final withCode = request.syncCode == null
-        ? request.copyWith(syncCode: generateSyncCode())
-        : request;
-    final requests = getRequests()..add(withCode);
+    final requests = getRequests()..add(request);
     await _saveRequests(requests);
-    await _cloudUpsert(withCode, revealRider: false);
-    return withCode;
+    await _cloudUpsert(request, revealRider: false);
+    return request;
   }
 
   Future<void> updateRequest(RideRequest request) async {
@@ -138,15 +135,6 @@ class AppRepository {
         revealRider: request.status == RequestStatus.confirmed,
       );
     }
-  }
-
-  Future<RideRequest?> importRequestBySyncCode(String syncCode) async {
-    final cloud = _cloud;
-    if (cloud == null || !cloud.isAvailable) return null;
-    final remote = await cloud.fetchRequestBySyncCode(syncCode);
-    if (remote == null) return null;
-    await _mergeRemoteRequest(remote);
-    return getRequestById(remote.id);
   }
 
   Future<bool> syncFromCloud({
@@ -287,7 +275,6 @@ class AppRepository {
               remote.riderName != 'Rider'
           ? remote.riderName
           : local.riderName,
-      syncCode: remote.syncCode ?? local.syncCode,
     );
   }
 
@@ -331,9 +318,6 @@ class AppRepository {
   }
 
   String generateId() => _uuid.v4();
-
-  String generateSyncCode() =>
-      _uuid.v4().replaceAll('-', '').substring(0, 6).toUpperCase();
 
   List<Trip> getLeavingSoonTrips() {
     final now = DateTime.now();

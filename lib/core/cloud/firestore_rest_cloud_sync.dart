@@ -16,7 +16,6 @@ class FirestoreRestCloudSync implements CloudSyncService {
   final FirestoreRestClient _client;
 
   static const _requests = 'ride_requests';
-  static const _syncCodes = 'sync_codes';
   static const _trips = 'trips';
 
   @override
@@ -49,12 +48,6 @@ class FirestoreRestCloudSync implements CloudSyncService {
     final cloud = requestToCloud(request, revealRider: revealRider);
     final data = requestToMap(cloud);
     await _client.setDocument('$_requests/${request.id}', data);
-    if (request.syncCode != null) {
-      await _client.setDocument(
-        '$_syncCodes/${request.syncCode}',
-        {'requestId': request.id},
-      );
-    }
   }
 
   @override
@@ -65,15 +58,6 @@ class FirestoreRestCloudSync implements CloudSyncService {
         .map(requestFromMap)
         .where((r) => r.tripId == tripId)
         .toList();
-  }
-
-  @override
-  Future<RideRequest?> fetchRequestBySyncCode(String syncCode) async {
-    if (!isAvailable) return null;
-    final index =
-        await _client.getDocument('$_syncCodes/${syncCode.toUpperCase()}');
-    if (index == null) return null;
-    return fetchRequestById(index['requestId'] as String);
   }
 
   @override
