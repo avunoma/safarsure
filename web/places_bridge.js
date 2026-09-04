@@ -1,26 +1,17 @@
 (function () {
-  var service = null;
   var loadPromise = null;
-
-  function ensureService() {
-    return service;
-  }
+  var cachedApiKey = null;
 
   window.safarsurePlacesLoad = function (apiKey) {
     if (!apiKey) {
       return Promise.resolve();
     }
+    cachedApiKey = apiKey;
     if (loadPromise) {
       return loadPromise;
     }
     loadPromise = new Promise(function (resolve, reject) {
-      if (
-        window.google &&
-        window.google.maps &&
-        window.google.maps.places &&
-        window.google.maps.places.AutocompleteService
-      ) {
-        service = new google.maps.places.AutocompleteService();
+      if (window.google && window.google.maps && window.google.maps.importLibrary) {
         resolve();
         return;
       }
@@ -28,11 +19,10 @@
       script.src =
         'https://maps.googleapis.com/maps/api/js?key=' +
         encodeURIComponent(apiKey) +
-        '&libraries=places';
+        '&loading=async';
       script.async = true;
       script.defer = true;
       script.onload = function () {
-        service = new google.maps.places.AutocompleteService();
         resolve();
       };
       script.onerror = function (err) {
@@ -44,32 +34,48 @@
   };
 
   window.safarsurePlacesAutocomplete = function (query, callback) {
-    if (!service) {
-      callback([]);
+    var finish = function (payload) {
+      callback(payload);
+    };
+
+    if (!cachedApiKey) {
+      finish({ suggestions: [], error: 'PERMISSION_DENIED' });
       return;
     }
-    service.getPlacePredictions(
-      {
-        input: query,
-        componentRestrictions: { country: 'in' },
-      },
-      function (predictions, status) {
-        if (
-          status !== google.maps.places.PlacesServiceStatus.OK ||
-          !predictions
-        ) {
-          callback([]);
-          return;
-        }
-        callback(
-          predictions.map(function (p) {
+
+    window
+      .safarsurePlacesLoad(cachedApiKey)
+      .then(function () {
+        return google.maps.importLibrary('places');
+      })
+      .then(function (placesLib) {
+        var AutocompleteSuggestion = placesLib.AutocompleteSuggestion;
+        return AutocompleteSuggestion.fetchAutocompleteSuggestions({
+          input: query,
+          includedRegionCodes: ['in'],
+          language: 'en',
+        });
+      })
+      .then(function (response) {
+        var suggestions = (response.suggestions || [])
+          .map(function (s) {
+            var prediction = s.placePrediction;
+            if (!prediction || !prediction.text) return null;
             return {
-              description: p.description,
-              placeId: p.place_id,
+              description: prediction.text.toString(),
+              placeId: prediction.placeId || '',
             };
           })
-        );
-      }
-    );
+          .filter(function (item) {
+            return item !== null;
+          });
+        finish({ suggestions: suggestions, error: null });
+      })
+      .catch(function (err) {
+        var message =
+          (err && err.message) ||
+          (typeof err === 'string' ? err : 'REQUEST_DENIED');
+        finish({ suggestions: [], error: message });
+      });
   };
 })();

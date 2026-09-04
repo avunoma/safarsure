@@ -15,6 +15,8 @@ class FirestoreRestClient {
   final String apiKey;
   final http.Client _client;
 
+  DateTime? _listBackoffUntil;
+
   String get _base =>
       'https://firestore.googleapis.com/v1/projects/$projectId/databases/(default)/documents';
 
@@ -36,10 +38,22 @@ class FirestoreRestClient {
     return Uri.parse('$_base/$path?${params.join('&')}');
   }
 
+  bool get _inListBackoff =>
+      _listBackoffUntil != null && DateTime.now().isBefore(_listBackoffUntil!);
+
+  void _applyListBackoff([Duration duration = const Duration(seconds: 30)]) {
+    _listBackoffUntil = DateTime.now().add(duration);
+  }
+
   Future<void> setDocument(String path, Map<String, dynamic> data) async {
     final body = jsonEncode({'fields': encodeFirestoreFields(data)});
     final uri = _uriWithMask(path, data);
     final response = await _client.patch(uri, headers: _headers, body: body);
+
+    if (response.statusCode == 429) {
+      _applyListBackoff();
+      return;
+    }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw StateError(
@@ -49,8 +63,14 @@ class FirestoreRestClient {
   }
 
   Future<Map<String, dynamic>?> getDocument(String path) async {
+    if (_inListBackoff) return null;
+
     final response = await _client.get(_uri(path), headers: _headers);
     if (response.statusCode == 404) return null;
+    if (response.statusCode == 429) {
+      _applyListBackoff();
+      return null;
+    }
     if (response.statusCode != 200) {
       throw StateError(
         'Firestore read failed (${response.statusCode}): ${response.body}',
@@ -61,7 +81,13 @@ class FirestoreRestClient {
   }
 
   Future<List<Map<String, dynamic>>> listCollection(String collectionPath) async {
+    if (_inListBackoff) return [];
+
     final response = await _client.get(_uri(collectionPath), headers: _headers);
+    if (response.statusCode == 429) {
+      _applyListBackoff();
+      return [];
+    }
     if (response.statusCode != 200) {
       throw StateError(
         'Firestore list failed (${response.statusCode}): ${response.body}',

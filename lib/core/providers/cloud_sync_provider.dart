@@ -25,22 +25,26 @@ class CloudSyncPoller extends StateNotifier<int> {
     final user = _ref.read(authStateProvider).value;
     if (user == null) return;
 
-    final repo = await _ref.read(appRepositoryProvider.future);
-    final driverTrips = repo
-        .getTrips()
-        .where((t) => t.driverId == user.id)
-        .map((t) => t.id)
-        .toList();
+    try {
+      final repo = await _ref.read(appRepositoryProvider.future);
+      final driverTrips = repo
+          .getTrips()
+          .where((t) => t.driverId == user.id)
+          .map((t) => t.id)
+          .toList();
 
-    final changed = await repo.syncFromCloud(
-      driverTripIds: driverTrips,
-      riderUserId: user.id,
-    );
+      final changed = await repo.syncFromCloud(
+        driverTripIds: driverTrips,
+        riderUserId: user.id,
+      );
 
-    if (changed) {
-      state++;
-      await _ref.read(tripsProvider.notifier).refresh();
-      await _ref.read(requestsProvider.notifier).refresh();
+      if (changed) {
+        state++;
+        await _ref.read(tripsProvider.notifier).refresh();
+        await _ref.read(requestsProvider.notifier).refresh();
+      }
+    } on Object {
+      // Quota / transient Firestore REST errors should not break the UI.
     }
   }
 
