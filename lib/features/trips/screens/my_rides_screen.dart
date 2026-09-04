@@ -39,7 +39,7 @@ class MyRidesScreen extends ConsumerWidget {
               children: [
                 FloatingActionButton.extended(
                   heroTag: 'join-code',
-                  onPressed: () => _showJoinRideCodeDialog(context, ref),
+                  onPressed: () => _joinRideByCode(context, ref),
                   icon: const Icon(Icons.qr_code),
                   label: const Text('Join ride code'),
                 ),
@@ -57,33 +57,11 @@ class MyRidesScreen extends ConsumerWidget {
   }
 }
 
-Future<void> _showJoinRideCodeDialog(BuildContext context, WidgetRef ref) async {
-  final controller = TextEditingController();
+Future<void> _joinRideByCode(BuildContext context, WidgetRef ref) async {
   final code = await showDialog<String>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Join ride by code'),
-      content: TextField(
-        controller: controller,
-        textCapitalization: TextCapitalization.characters,
-        decoration: const InputDecoration(
-          labelText: '6-character ride code',
-          hintText: 'From rider after they request',
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: () => Navigator.pop(context, controller.text.trim()),
-          child: const Text('Join'),
-        ),
-      ],
-    ),
+    builder: (context) => const JoinRideCodeDialog(),
   );
-  controller.dispose();
 
   if (code == null || code.isEmpty || !context.mounted) return;
 
@@ -101,7 +79,7 @@ Future<void> _showJoinRideCodeDialog(BuildContext context, WidgetRef ref) async 
 
   final repo = await ref.read(appRepositoryProvider.future);
   final request = await repo.importRequestBySyncCode(code);
-  ref.invalidate(requestsProvider);
+  await ref.read(requestsProvider.notifier).refresh();
 
   if (!context.mounted) return;
   if (request == null) {
@@ -117,11 +95,65 @@ Future<void> _showJoinRideCodeDialog(BuildContext context, WidgetRef ref) async 
   context.push('/my-rides/trip/${request.tripId}/requests');
 }
 
+/// Dialog with self-managed [TextEditingController] lifecycle.
+class JoinRideCodeDialog extends StatefulWidget {
+  const JoinRideCodeDialog({super.key});
+
+  @override
+  State<JoinRideCodeDialog> createState() => _JoinRideCodeDialogState();
+}
+
+class _JoinRideCodeDialogState extends State<JoinRideCodeDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() => Navigator.pop(context, _controller.text.trim());
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Join ride by code'),
+      content: TextField(
+        controller: _controller,
+        textCapitalization: TextCapitalization.characters,
+        autofocus: true,
+        decoration: const InputDecoration(
+          labelText: '6-character ride code',
+          hintText: 'From rider after they request',
+        ),
+        onSubmitted: (_) => _submit(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _submit,
+          child: const Text('Join'),
+        ),
+      ],
+    );
+  }
+}
+
 class _RiderRidesView extends ConsumerWidget {
   const _RiderRidesView();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(cloudSyncPollerProvider);
     final requestsAsync = ref.watch(myRiderRequestsProvider);
     final repoAsync = ref.watch(appRepositoryProvider);
 

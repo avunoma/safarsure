@@ -5,6 +5,7 @@ import 'package:safarsure/core/providers/cloud_sync_provider.dart';
 import 'package:safarsure/data/models/chat_message.dart';
 import 'package:safarsure/data/repositories/app_repository.dart';
 import 'package:safarsure/features/auth/providers/auth_provider.dart';
+import 'package:safarsure/features/trips/providers/trips_provider.dart';
 
 final chatMessagesProvider =
     Provider.family<AsyncValue<List<ChatMessage>>, String>((ref, requestId) {
@@ -51,7 +52,8 @@ class ChatNotifier extends StateNotifier<AsyncValue<void>> {
 
     if (changed) {
       _ref.invalidate(chatMessagesProvider(_requestId));
-      _ref.invalidate(appRepositoryProvider);
+      await _ref.read(tripsProvider.notifier).refresh();
+      await _ref.read(requestsProvider.notifier).refresh();
     }
   }
 
