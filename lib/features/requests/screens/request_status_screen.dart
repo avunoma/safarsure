@@ -69,39 +69,6 @@ class RequestStatusScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                if (request.syncCode != null) ...[
-                  Card(
-                    color: AppColors.primary.withValues(alpha: 0.06),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Ride sync code',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            request.syncCode!,
-                            style: const TextStyle(
-                              fontSize: 28,
-                              letterSpacing: 4,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Share this code with your driver on another phone so they can accept and chat.',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),

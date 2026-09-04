@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:safarsure/core/theme/app_colors.dart';
+import 'package:safarsure/core/utils/privacy.dart';
 import 'package:safarsure/data/repositories/app_repository.dart';
 import 'package:safarsure/features/trips/providers/trips_provider.dart';
 
@@ -83,7 +84,7 @@ class _RequestSeatScreenState extends ConsumerState<RequestSeatScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Driver: ${trip.driverName} · ₹${trip.pricePerSeat}/seat',
+                          '${privatePartyLabel(isDriver: true)} · ${formatRating(trip.driverRating, trip.driverRatingCount > 0 ? trip.driverRatingCount : 12)} · ₹${trip.pricePerSeat}/seat',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],

@@ -12,7 +12,6 @@ class FirestoreSdkCloudSync implements CloudSyncService {
   FirebaseFirestore? _db;
 
   static const _requests = 'ride_requests';
-  static const _syncCodes = 'sync_codes';
   static const _trips = 'trips';
 
   @override
@@ -62,11 +61,6 @@ class FirestoreSdkCloudSync implements CloudSyncService {
     await requestsCol
         .doc(request.id)
         .set(requestToMap(cloud), SetOptions(merge: true));
-    if (request.syncCode != null) {
-      await db.collection(_syncCodes).doc(request.syncCode).set({
-        'requestId': request.id,
-      });
-    }
   }
 
   @override
@@ -75,18 +69,6 @@ class FirestoreSdkCloudSync implements CloudSyncService {
     if (requestsCol == null) return [];
     final snap = await requestsCol.where('tripId', isEqualTo: tripId).get();
     return snap.docs.map((d) => requestFromMap(d.data())).toList();
-  }
-
-  @override
-  Future<RideRequest?> fetchRequestBySyncCode(String syncCode) async {
-    final db = _firestore;
-    if (db == null) return null;
-    final index =
-        await db.collection(_syncCodes).doc(syncCode.toUpperCase()).get();
-    if (!index.exists) return null;
-    final requestId = index.data()?['requestId'] as String?;
-    if (requestId == null) return null;
-    return fetchRequestById(requestId);
   }
 
   @override

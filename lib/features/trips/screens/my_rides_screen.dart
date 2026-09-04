@@ -258,6 +258,7 @@ class _DriverRidesView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(cloudSyncPollerProvider);
     final tripsAsync = ref.watch(myDriverTripsProvider);
     final requestsAsync = ref.watch(requestsProvider);
 
@@ -269,7 +270,8 @@ class _DriverRidesView extends ConsumerWidget {
           return EmptyState(
             icon: Icons.directions_car_outlined,
             title: 'No rides posted',
-            subtitle: 'Post your first ride to start receiving seat requests.',
+            subtitle:
+                'Post a ride — riders on other phones will see it in search automatically.',
             action: ElevatedButton(
               onPressed: () => context.push('/my-rides/post'),
               child: const Text('Post a ride'),
