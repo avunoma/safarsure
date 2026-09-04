@@ -251,6 +251,10 @@ class _FakeRestCloudSync implements CloudSyncService {
       _requests.where((r) => r.tripId == tripId).toList();
 
   @override
+  Future<List<RideRequest>> fetchRequestsForRider(String riderId) async =>
+      _requests.where((r) => r.riderId == riderId).toList();
+
+  @override
   Future<RideRequest?> fetchRequestById(String requestId) async {
     try {
       return _requests.firstWhere((r) => r.id == requestId);

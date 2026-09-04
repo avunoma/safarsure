@@ -100,6 +100,64 @@ class FirestoreRestClient {
         .toList();
   }
 
+  /// Structured query (equality filter) — avoids full-collection scans.
+  Future<List<Map<String, dynamic>>> queryCollectionEqual({
+    String? parentPath,
+    required String collectionId,
+    required String fieldPath,
+    required String equalTo,
+  }) async {
+    if (_inListBackoff) return [];
+
+    final parent = parentPath == null
+        ? 'projects/$projectId/databases/(default)/documents'
+        : 'projects/$projectId/databases/(default)/documents/$parentPath';
+
+    final uri = Uri.parse(
+      'https://firestore.googleapis.com/v1/$parent:runQuery',
+    ).replace(queryParameters: {'key': apiKey});
+
+    final body = jsonEncode({
+      'structuredQuery': {
+        'from': [
+          {
+            'collectionId': collectionId,
+            if (parentPath != null) 'allDescendants': false,
+          },
+        ],
+        'where': {
+          'fieldFilter': {
+            'field': {'fieldPath': fieldPath},
+            'op': 'EQUAL',
+            'value': {'stringValue': equalTo},
+          },
+        },
+      },
+    });
+
+    final response = await _client.post(uri, headers: _headers, body: body);
+    if (response.statusCode == 429) {
+      _applyListBackoff();
+      return [];
+    }
+    if (response.statusCode != 200) {
+      throw StateError(
+        'Firestore query failed (${response.statusCode}): ${response.body}',
+      );
+    }
+
+    final rows = jsonDecode(response.body) as List<dynamic>;
+    final docs = <Map<String, dynamic>>[];
+    for (final row in rows) {
+      if (row is! Map<String, dynamic>) continue;
+      final document = row['document'];
+      if (document is Map<String, dynamic>) {
+        docs.add(decodeFirestoreDocument(document));
+      }
+    }
+    return docs;
+  }
+
   Future<List<Map<String, dynamic>>> listSubcollection(
     String parentPath,
     String subcollection,

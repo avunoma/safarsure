@@ -155,14 +155,11 @@ class AppRepository {
       }
     }
 
-    final riderRequests = riderUserId == null
-        ? <RideRequest>[]
-        : getRequests().where((r) => r.riderId == riderUserId);
-
-    for (final local in riderRequests) {
-      final remote = await cloud.fetchRequestById(local.id);
-      if (remote != null && await _mergeRemoteRequest(remote)) {
-        changed = true;
+    if (riderUserId != null) {
+      final remoteRiderRequests =
+          await cloud.fetchRequestsForRider(riderUserId);
+      for (final remote in remoteRiderRequests) {
+        if (await _mergeRemoteRequest(remote)) changed = true;
       }
     }
 

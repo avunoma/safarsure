@@ -53,11 +53,23 @@ class FirestoreRestCloudSync implements CloudSyncService {
   @override
   Future<List<RideRequest>> fetchRequestsForTrip(String tripId) async {
     if (!isAvailable) return [];
-    final docs = await _client.listCollection(_requests);
-    return docs
-        .map(requestFromMap)
-        .where((r) => r.tripId == tripId)
-        .toList();
+    final docs = await _client.queryCollectionEqual(
+      collectionId: _requests,
+      fieldPath: 'tripId',
+      equalTo: tripId,
+    );
+    return docs.map(requestFromMap).toList();
+  }
+
+  @override
+  Future<List<RideRequest>> fetchRequestsForRider(String riderId) async {
+    if (!isAvailable) return [];
+    final docs = await _client.queryCollectionEqual(
+      collectionId: _requests,
+      fieldPath: 'riderId',
+      equalTo: riderId,
+    );
+    return docs.map(requestFromMap).toList();
   }
 
   @override

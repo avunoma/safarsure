@@ -118,6 +118,45 @@ void main() {
       expect(await client.listCollection('trips'), isEmpty);
       expect(await client.listCollection('trips'), isEmpty);
     });
+
+    test('queryCollectionEqual parses structured query documents', () async {
+      const body = '''
+[
+  {
+    "document": {
+      "name": "projects/demo/databases/(default)/documents/ride_requests/req-1",
+      "fields": {
+        "id": {"stringValue": "req-1"},
+        "tripId": {"stringValue": "trip-1"},
+        "riderId": {"stringValue": "rider-1"},
+        "riderName": {"stringValue": "Rider"},
+        "seats": {"integerValue": "1"},
+        "status": {"stringValue": "waiting"}
+      }
+    }
+  }
+]
+''';
+
+      final client = FirestoreRestClient(
+        projectId: 'demo',
+        apiKey: 'key',
+        client: MockClient((request) async {
+          expect(request.method, 'POST');
+          expect(request.url.path, endsWith(':runQuery'));
+          return http.Response(body, 200);
+        }),
+      );
+
+      final docs = await client.queryCollectionEqual(
+        collectionId: 'ride_requests',
+        fieldPath: 'tripId',
+        equalTo: 'trip-1',
+      );
+
+      expect(docs, hasLength(1));
+      expect(docs.first['tripId'], 'trip-1');
+    });
   });
 
   testWidgets('selecting suggestion stores canonical name in controller',

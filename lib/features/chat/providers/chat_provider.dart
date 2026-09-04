@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:safarsure/core/config/app_config.dart';
 import 'package:safarsure/core/providers/cloud_sync_provider.dart';
 import 'package:safarsure/data/models/chat_message.dart';
 import 'package:safarsure/data/repositories/app_repository.dart';
@@ -24,7 +25,7 @@ final chatNotifierProvider =
 
 class ChatNotifier extends StateNotifier<AsyncValue<void>> {
   ChatNotifier(this._ref, this._requestId) : super(const AsyncValue.data(null)) {
-    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) => _pull());
+    _pollTimer = Timer.periodic(AppConfig.cloudSyncInterval, (_) => _pull());
   }
 
   final Ref _ref;
