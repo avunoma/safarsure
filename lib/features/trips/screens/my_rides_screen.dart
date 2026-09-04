@@ -33,117 +33,12 @@ class MyRidesScreen extends ConsumerWidget {
       ),
       body: isDriver ? const _DriverRidesView() : const _RiderRidesView(),
       floatingActionButton: isDriver
-          ? Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                FloatingActionButton.extended(
-                  heroTag: 'join-code',
-                  onPressed: () => _joinRideByCode(context, ref),
-                  icon: const Icon(Icons.qr_code),
-                  label: const Text('Join ride code'),
-                ),
-                const SizedBox(height: 12),
-                FloatingActionButton.extended(
-                  heroTag: 'post-ride',
-                  onPressed: () => context.push('/my-rides/post'),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Post ride'),
-                ),
-              ],
+          ? FloatingActionButton.extended(
+              onPressed: () => context.push('/my-rides/post'),
+              icon: const Icon(Icons.add),
+              label: const Text('Post ride'),
             )
           : null,
-    );
-  }
-}
-
-Future<void> _joinRideByCode(BuildContext context, WidgetRef ref) async {
-  final code = await showDialog<String>(
-    context: context,
-    builder: (context) => const JoinRideCodeDialog(),
-  );
-
-  if (code == null || code.isEmpty || !context.mounted) return;
-
-  final cloudReady = ref.read(cloudSyncAvailableProvider);
-  if (!cloudReady) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Cloud sync is off. Run with DEMO_FIREBASE_PROJECT_ID and DEMO_FIREBASE_API_KEY.',
-        ),
-      ),
-    );
-    return;
-  }
-
-  final repo = await ref.read(appRepositoryProvider.future);
-  final request = await repo.importRequestBySyncCode(code);
-  await ref.read(requestsProvider.notifier).refresh();
-
-  if (!context.mounted) return;
-  if (request == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Ride code not found')),
-    );
-    return;
-  }
-
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('Ride linked — open requests to accept')),
-  );
-  context.push('/my-rides/trip/${request.tripId}/requests');
-}
-
-/// Dialog with self-managed [TextEditingController] lifecycle.
-class JoinRideCodeDialog extends StatefulWidget {
-  const JoinRideCodeDialog({super.key});
-
-  @override
-  State<JoinRideCodeDialog> createState() => _JoinRideCodeDialogState();
-}
-
-class _JoinRideCodeDialogState extends State<JoinRideCodeDialog> {
-  late final TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _submit() => Navigator.pop(context, _controller.text.trim());
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Join ride by code'),
-      content: TextField(
-        controller: _controller,
-        textCapitalization: TextCapitalization.characters,
-        autofocus: true,
-        decoration: const InputDecoration(
-          labelText: '6-character ride code',
-          hintText: 'From rider after they request',
-        ),
-        onSubmitted: (_) => _submit(),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: _submit,
-          child: const Text('Join'),
-        ),
-      ],
     );
   }
 }
