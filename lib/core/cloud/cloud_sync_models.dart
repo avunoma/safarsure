@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:safarsure/core/constants/fuel_share_constants.dart';
 import 'package:safarsure/core/utils/privacy.dart';
 import 'package:safarsure/data/models/chat_message.dart';
 import 'package:safarsure/data/models/ride_request.dart';
@@ -118,33 +119,64 @@ Map<String, dynamic> tripToMap(Trip trip) {
     'vehicleMake': cloud.vehicle.make,
     'vehicleModel': cloud.vehicle.model,
     'vehicleColor': cloud.vehicle.color,
+    'vehicleCategory': cloud.vehicle.category.name,
     'stops': cloud.stops.join('|'),
     'driverRating': cloud.driverRating,
     'driverRatingCount': cloud.driverRatingCount,
+    'distanceKm': cloud.distanceKm,
+    'tollCostsInr': cloud.tollCostsInr,
+    'fuelType': cloud.fuelType.name,
+    'fuelRateInr': cloud.fuelRateInr,
+    'maxFuelContributionPerSeat': cloud.maxFuelContributionPerSeat,
+    'publishedAt': cloud.publishedAt.toIso8601String(),
   };
 }
 
 Trip tripFromMap(Map<String, dynamic> map) {
   final stopsRaw = map['stops'] as String? ?? '';
+  final departure = DateTime.parse(map['departureTime'] as String);
+  final pricePerSeat = map['pricePerSeat'] as int;
+  final categoryRaw = map['vehicleCategory'] as String?;
+  final fuelTypeRaw = map['fuelType'] as String?;
   return Trip(
     id: map['id'] as String,
     driverId: map['driverId'] as String,
     fromCity: map['fromCity'] as String,
     toCity: map['toCity'] as String,
-    departureTime: DateTime.parse(map['departureTime'] as String),
+    departureTime: departure,
     seatsTotal: map['seatsTotal'] as int,
     seatsAvailable: map['seatsAvailable'] as int,
-    pricePerSeat: map['pricePerSeat'] as int,
+    pricePerSeat: pricePerSeat,
     vehicle: Vehicle(
       make: map['vehicleMake'] as String,
       model: map['vehicleModel'] as String,
       color: map['vehicleColor'] as String,
+      category: categoryRaw == null
+          ? VehicleCategory.hatchback
+          : VehicleCategory.values.firstWhere(
+              (c) => c.name == categoryRaw,
+              orElse: () => VehicleCategory.hatchback,
+            ),
     ),
     stops: stopsRaw.isEmpty
         ? const []
         : stopsRaw.split('|').where((s) => s.isNotEmpty).toList(),
     driverRating: (map['driverRating'] as num?)?.toDouble() ?? 4.5,
     driverRatingCount: map['driverRatingCount'] as int? ?? 0,
+    distanceKm: (map['distanceKm'] as num?)?.toDouble() ?? 0,
+    tollCostsInr: (map['tollCostsInr'] as num?)?.toDouble() ?? 0,
+    fuelType: fuelTypeRaw == null
+        ? FuelType.petrol
+        : FuelType.values.firstWhere(
+            (f) => f.name == fuelTypeRaw,
+            orElse: () => FuelType.petrol,
+          ),
+    fuelRateInr: (map['fuelRateInr'] as num?)?.toDouble() ?? 102.0,
+    maxFuelContributionPerSeat:
+        map['maxFuelContributionPerSeat'] as int? ?? pricePerSeat,
+    publishedAt: map['publishedAt'] != null
+        ? DateTime.parse(map['publishedAt'] as String)
+        : departure,
   );
 }
 

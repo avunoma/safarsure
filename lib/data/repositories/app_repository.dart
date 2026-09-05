@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:safarsure/core/cloud/cloud_sync_models.dart';
 import 'package:safarsure/core/cloud/composite_cloud_sync.dart';
 import 'package:safarsure/core/constants/indian_cities.dart';
+import 'package:safarsure/core/services/ride_offer_limit_service.dart';
+import 'package:safarsure/core/services/trip_compliance_service.dart';
 import 'package:safarsure/data/models/chat_message.dart';
 import 'package:safarsure/data/models/ride_request.dart';
 import 'package:safarsure/data/models/trip.dart';
@@ -23,10 +25,13 @@ const _seedVersionKey = 'safarsure_seed_version';
 const _currentSeedVersion = 3;
 
 class AppRepository {
-  AppRepository(this._prefs, {CloudSyncService? cloud}) : _cloud = cloud;
+  AppRepository(this._prefs, {CloudSyncService? cloud})
+      : _cloud = cloud,
+        _compliance = const TripComplianceService();
 
   final SharedPreferences _prefs;
   final CloudSyncService? _cloud;
+  final TripComplianceService _compliance;
   final _uuid = const Uuid();
 
   Future<void> initialize() async {
@@ -79,10 +84,14 @@ class AppRepository {
   }
 
   Future<Trip> addTrip(Trip trip) async {
-    final trips = getTrips()..add(trip);
+    final normalized = _compliance.normalizeTrip(
+      trip.copyWith(publishedAt: DateTime.now()),
+    );
+    _compliance.validateForPublish(normalized, getTrips());
+    final trips = getTrips()..add(normalized);
     await _saveTrips(trips);
-    await _cloudUpsertTrip(trip);
-    return trip;
+    await _cloudUpsertTrip(normalized, isNewPublish: true);
+    return normalized;
   }
 
   Future<void> updateTrip(Trip trip) async {
@@ -93,6 +102,18 @@ class AppRepository {
       await _saveTrips(trips);
       await _cloudUpsertTrip(trip);
     }
+  }
+
+  /// Whether [driverId] can publish another ride offer (24h rolling cap).
+  bool canDriverPublishOffer(String driverId) => _canPublishOffer(driverId);
+
+  bool _canPublishOffer(String driverId) {
+    const service = RideOfferLimitService();
+    return service.canPublish(getTrips(), driverId);
+  }
+
+  String rideOfferLimitMessage() {
+    return const RideOfferLimitService().limitReachedMessage();
   }
 
   Trip? getTripById(String id) {
@@ -184,10 +205,20 @@ class AppRepository {
     return _mergeRemoteTrips(remoteTrips);
   }
 
-  Future<void> _cloudUpsertTrip(Trip trip) async {
+  Future<void> _cloudUpsertTrip(Trip trip, {bool isNewPublish = false}) async {
     final cloud = _cloud;
     if (cloud == null || !cloud.isAvailable) return;
-    await cloud.upsertTrip(trip);
+    final normalized = _compliance.normalizeTrip(trip);
+    try {
+      _compliance.validateForPublish(
+        normalized,
+        getTrips(),
+        isNewPublish: isNewPublish,
+      );
+    } on TripComplianceException {
+      return;
+    }
+    await cloud.upsertTrip(normalized);
   }
 
   Future<bool> _mergeRemoteTrips(List<Trip> remoteTrips) async {
