@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:safarsure/core/providers/cloud_sync_provider.dart';
 import 'package:safarsure/core/theme/app_colors.dart';
 import 'package:safarsure/core/utils/trip_sort.dart';
 import 'package:safarsure/core/widgets/common_widgets.dart';
@@ -50,7 +49,6 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.watch(cloudSyncPollerProvider);
     final tripsAsync = ref.watch(tripsProvider);
     final dateFormat = DateFormat('EEE, d MMM');
 

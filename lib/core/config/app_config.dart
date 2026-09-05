@@ -26,6 +26,16 @@ abstract final class AppConfig {
     defaultValue: '',
   );
 
+  /// Background cloud sync poll interval (seconds). Default 30 to limit Firestore reads.
+  static const cloudSyncIntervalSeconds = int.fromEnvironment(
+    'CLOUD_SYNC_INTERVAL_SECONDS',
+    defaultValue: 30,
+  );
+
+  static Duration get cloudSyncInterval => Duration(
+        seconds: cloudSyncIntervalSeconds < 5 ? 5 : cloudSyncIntervalSeconds,
+      );
+
   static bool get hasMapsApiKey => mapsApiKey.isNotEmpty;
 
   static bool get hasDemoCloudRest =>

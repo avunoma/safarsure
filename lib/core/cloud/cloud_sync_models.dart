@@ -17,6 +17,8 @@ abstract class CloudSyncService {
 
   Future<List<RideRequest>> fetchRequestsForTrip(String tripId);
 
+  Future<List<RideRequest>> fetchRequestsForRider(String riderId);
+
   Future<RideRequest?> fetchRequestById(String requestId);
 
   Future<void> sendMessage(ChatMessage message);

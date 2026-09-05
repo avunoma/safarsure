@@ -118,6 +118,45 @@ void main() {
       expect(await client.listCollection('trips'), isEmpty);
       expect(await client.listCollection('trips'), isEmpty);
     });
+
+    test('queryCollectionEqual parses structured query documents', () async {
+      const body = '''
+[
+  {
+    "document": {
+      "name": "projects/demo/databases/(default)/documents/ride_requests/req-1",
+      "fields": {
+        "id": {"stringValue": "req-1"},
+        "tripId": {"stringValue": "trip-1"},
+        "riderId": {"stringValue": "rider-1"},
+        "riderName": {"stringValue": "Rider"},
+        "seats": {"integerValue": "1"},
+        "status": {"stringValue": "waiting"}
+      }
+    }
+  }
+]
+''';
+
+      final client = FirestoreRestClient(
+        projectId: 'demo',
+        apiKey: 'key',
+        client: MockClient((request) async {
+          expect(request.method, 'POST');
+          expect(request.url.path, endsWith(':runQuery'));
+          return http.Response(body, 200);
+        }),
+      );
+
+      final docs = await client.queryCollectionEqual(
+        collectionId: 'ride_requests',
+        fieldPath: 'tripId',
+        equalTo: 'trip-1',
+      );
+
+      expect(docs, hasLength(1));
+      expect(docs.first['tripId'], 'trip-1');
+    });
   });
 
   testWidgets('selecting suggestion stores canonical name in controller',
@@ -142,12 +181,51 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.textContaining('Bengaluru'), findsWidgets);
+    expect(find.byType(ListView), findsOneWidget);
 
     await tester.tap(find.textContaining('Bengaluru').first);
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    // Past debounce + selecting hold — list must stay closed.
+    await tester.pump(const Duration(milliseconds: 400));
 
     expect(controller.text, 'Bengaluru');
     expect(controller.text, isNot(contains('(')));
+    expect(find.byType(ListView), findsNothing);
+  });
+
+  testWidgets('selection text change does not reopen suggestion list',
+      (tester) async {
+    final controller = TextEditingController();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: PlaceAutocompleteField(
+              label: 'Pickup',
+              controller: controller,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(TextFormField));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.textContaining('Bengaluru').first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(controller.text, 'Bengaluru');
+    expect(find.byType(ListView), findsNothing);
+
+    // User taps field again to search — list should reopen.
+    await tester.tap(find.byType(TextFormField));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byType(ListView), findsOneWidget);
   });
 }

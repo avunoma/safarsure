@@ -72,6 +72,14 @@ class FirestoreSdkCloudSync implements CloudSyncService {
   }
 
   @override
+  Future<List<RideRequest>> fetchRequestsForRider(String riderId) async {
+    final requestsCol = _requestsCol;
+    if (requestsCol == null) return [];
+    final snap = await requestsCol.where('riderId', isEqualTo: riderId).get();
+    return snap.docs.map((d) => requestFromMap(d.data())).toList();
+  }
+
+  @override
   Future<RideRequest?> fetchRequestById(String requestId) async {
     final requestsCol = _requestsCol;
     if (requestsCol == null) return null;

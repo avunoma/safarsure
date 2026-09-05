@@ -47,10 +47,12 @@ flutter run \
   --dart-define=DEMO_FIREBASE_API_KEY=your-web-api-key
 ```
 
+Cloud sync polls every **30 seconds** by default (not continuously) to limit Firestore reads on Blaze. Override with `--dart-define=CLOUD_SYNC_INTERVAL_SECONDS=60`. Polling pauses when the app is backgrounded. Search results pull trips once when you open the screen.
+
 **Flow (straightforward booking):**
 1. **Phone A (driver)** — login as User A → Profile → Driver → Post ride (e.g. Mumbai → Pune, tomorrow 9am)
 2. **Phone B (rider)** — login as User B → Search same route/date → see Phone A's ride → Request seat
-3. **Phone A** — My rides → open trip → see incoming request → Accept (within ~2s via cloud poll)
+3. **Phone A** — My rides → open trip → see incoming request → Accept (within ~30s via cloud poll, or reopen screen)
 4. **Both** — chat + ratings unlock after accept; identities revealed per privacy rules
 
 No sync codes or manual pairing required.
