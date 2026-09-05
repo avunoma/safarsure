@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:safarsure/core/services/trip_compliance_service.dart';
 import 'package:safarsure/data/models/ride_request.dart';
 import 'package:safarsure/data/models/trip.dart';
 import 'package:safarsure/data/repositories/app_repository.dart';
@@ -27,9 +28,13 @@ class TripsNotifier extends StateNotifier<AsyncValue<List<Trip>>> {
 
   Future<Trip> postTrip(Trip trip) async {
     final repo = await _ref.read(appRepositoryProvider.future);
-    final created = await repo.addTrip(trip);
-    await refresh();
-    return created;
+    try {
+      final created = await repo.addTrip(trip);
+      await refresh();
+      return created;
+    } on TripComplianceException {
+      rethrow;
+    }
   }
 
   Future<void> updateTrip(Trip trip) async {

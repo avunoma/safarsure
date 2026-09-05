@@ -190,7 +190,7 @@ class TripCard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'fuel + toll share',
+                        'fuel contribution',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               fontSize: 10,
                               color: AppColors.charcoalMuted,

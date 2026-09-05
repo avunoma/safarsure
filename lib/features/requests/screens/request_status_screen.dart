@@ -97,9 +97,9 @@ class RequestStatusScreen extends ConsumerWidget {
                         ),
                         _InfoRow(
                           icon: Icons.currency_rupee,
-                          label: 'Your share',
+                          label: 'Expense share',
                           value:
-                              '₹${trip.pricePerSeat * request.seats} (fuel + toll)',
+                              '₹${trip.pricePerSeat * request.seats} reimbursement',
                         ),
                         if (request.note.isNotEmpty)
                           _InfoRow(

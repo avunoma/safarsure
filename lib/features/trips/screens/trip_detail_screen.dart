@@ -169,9 +169,9 @@ class TripDetailScreen extends ConsumerWidget {
                         const SizedBox(height: 12),
                         _DetailRow(
                           icon: Icons.currency_rupee,
-                          label: 'Your share',
+                          label: 'Fuel contribution',
                           value: '₹${trip.pricePerSeat} per seat',
-                          subtitle: 'fuel + toll share',
+                          subtitle: 'expense share (fuel + toll reimbursement)',
                         ),
                       ],
                     ),

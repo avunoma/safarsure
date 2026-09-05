@@ -84,7 +84,7 @@ class _RequestSeatScreenState extends ConsumerState<RequestSeatScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${privatePartyLabel(isDriver: true)} · ${formatRating(trip.driverRating, trip.driverRatingCount > 0 ? trip.driverRatingCount : 12)} · ₹${trip.pricePerSeat}/seat',
+                          '${privatePartyLabel(isDriver: true)} · ${formatRating(trip.driverRating, trip.driverRatingCount > 0 ? trip.driverRatingCount : 12)} · ₹${trip.pricePerSeat}/seat fuel contribution',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
@@ -122,7 +122,7 @@ class _RequestSeatScreenState extends ConsumerState<RequestSeatScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Total: ₹${trip.pricePerSeat * _seats}',
+                  'Total reimbursement: ₹${trip.pricePerSeat * _seats}',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 18,

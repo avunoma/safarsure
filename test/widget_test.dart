@@ -75,7 +75,7 @@ void main() {
     expect(roundTrip.driverName, isEmpty);
   });
 
-  test('sortTrips supports soonest, price, and rating', () {
+  test('sortTrips supports soonest, contribution, and rating', () {
     final base = DateTime(2026, 9, 10, 8);
     final trips = [
       Trip(
@@ -105,7 +105,7 @@ void main() {
     ];
 
     expect(sortTrips(trips, TripSortOption.soonest).first.id, 'b');
-    expect(sortTrips(trips, TripSortOption.lowestPrice).first.pricePerSeat, 500);
+    expect(sortTrips(trips, TripSortOption.lowestContribution).first.pricePerSeat, 500);
     expect(sortTrips(trips, TripSortOption.highestRating).first.driverRating, 4.9);
   });
 
