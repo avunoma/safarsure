@@ -181,12 +181,51 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.textContaining('Bengaluru'), findsWidgets);
+    expect(find.byType(ListView), findsOneWidget);
 
     await tester.tap(find.textContaining('Bengaluru').first);
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    // Past debounce + selecting hold — list must stay closed.
+    await tester.pump(const Duration(milliseconds: 400));
 
     expect(controller.text, 'Bengaluru');
     expect(controller.text, isNot(contains('(')));
+    expect(find.byType(ListView), findsNothing);
+  });
+
+  testWidgets('selection text change does not reopen suggestion list',
+      (tester) async {
+    final controller = TextEditingController();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: PlaceAutocompleteField(
+              label: 'Pickup',
+              controller: controller,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(TextFormField));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.textContaining('Bengaluru').first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(controller.text, 'Bengaluru');
+    expect(find.byType(ListView), findsNothing);
+
+    // User taps field again to search — list should reopen.
+    await tester.tap(find.byType(TextFormField));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byType(ListView), findsOneWidget);
   });
 }

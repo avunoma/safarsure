@@ -33,6 +33,9 @@ class _PlaceAutocompleteFieldState
   String? _mapsErrorHint;
   Timer? _debounce;
 
+  static const _debounceDuration = Duration(milliseconds: 200);
+  static const _selectingHoldDuration = Duration(milliseconds: 300);
+
   @override
   void initState() {
     super.initState();
@@ -58,8 +61,7 @@ class _PlaceAutocompleteFieldState
       return;
     }
 
-    // Web: focus leaves the TextField before ListTile onTap/onPointerDown.
-    // Keep the list briefly so pointer selection can complete.
+    // Web: focus may leave the TextField before tap completes.
     Future<void>.delayed(const Duration(milliseconds: 200), () {
       if (!mounted || _selecting || _focusNode.hasFocus) return;
       setState(() => _showSuggestions = false);
@@ -67,38 +69,52 @@ class _PlaceAutocompleteFieldState
   }
 
   void _onTextChanged() {
+    if (_selecting) return;
     if (!_showSuggestions && !_focusNode.hasFocus) return;
+
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 200), () {
+    _debounce = Timer(_debounceDuration, () {
+      if (_selecting) return;
       _loadSuggestions(widget.controller.text);
     });
   }
 
   Future<void> _loadSuggestions(String query) async {
-    if (!mounted) return;
+    if (!mounted || _selecting) return;
+    if (!_showSuggestions && !_focusNode.hasFocus) return;
+
     setState(() => _loading = true);
     final service = ref.read(placesServiceProvider);
     final results = await service.autocomplete(query);
-    if (mounted) {
-      setState(() {
-        _suggestions = results.suggestions;
-        _mapsErrorHint = results.mapsErrorHint;
-        _loading = false;
-        _showSuggestions = true;
-      });
-    }
+    if (!mounted || _selecting) return;
+
+    setState(() {
+      _suggestions = results.suggestions;
+      _mapsErrorHint = results.mapsErrorHint;
+      _loading = false;
+      // Never force the list open here — callers open explicitly; selection closes it.
+    });
   }
 
   void _selectSuggestion(PlaceSuggestion suggestion) {
+    if (_selecting) return;
+
     _selecting = true;
+    _debounce?.cancel();
+
+    widget.controller.removeListener(_onTextChanged);
     widget.controller.text = suggestion.canonicalName;
+    widget.controller.addListener(_onTextChanged);
+
     setState(() {
       _showSuggestions = false;
       _suggestions = const [];
+      _loading = false;
     });
     _focusNode.unfocus();
-    Future<void>.delayed(const Duration(milliseconds: 50), () {
-      _selecting = false;
+
+    Future<void>.delayed(_selectingHoldDuration, () {
+      if (mounted) _selecting = false;
     });
   }
 
@@ -139,6 +155,7 @@ class _PlaceAutocompleteFieldState
             return null;
           },
           onTap: () {
+            if (_selecting) return;
             setState(() => _showSuggestions = true);
             _loadSuggestions(widget.controller.text);
           },
@@ -179,42 +196,48 @@ class _PlaceAutocompleteFieldState
                             style: TextStyle(color: AppColors.charcoalMuted),
                           ),
                         )
-                  : Scrollbar(
-                      thumbVisibility: _suggestions.length > 6,
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        padding: EdgeInsets.zero,
-                        itemCount: _suggestions.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
-                        itemBuilder: (context, index) {
-                          final suggestion = _suggestions[index];
-                          return Listener(
-                            behavior: HitTestBehavior.opaque,
-                            onPointerDown: (_) =>
-                                _selectSuggestion(suggestion),
-                            child: ListTile(
-                              dense: true,
-                              leading: const Icon(
-                                Icons.location_on_outlined,
-                                size: 20,
-                                color: AppColors.primary,
-                              ),
-                              title: Text(suggestion.displayLabel),
-                              subtitle:
-                                  suggestion.displayLabel !=
-                                          suggestion.canonicalName
-                                      ? Text(
-                                          suggestion.canonicalName,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall,
-                                        )
-                                      : null,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
+                      : Scrollbar(
+                          thumbVisibility: _suggestions.length > 6,
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            padding: EdgeInsets.zero,
+                            itemCount: _suggestions.length,
+                            separatorBuilder: (_, __) => const Divider(height: 1),
+                            itemBuilder: (context, index) {
+                              final suggestion = _suggestions[index];
+                              return Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: () => _selectSuggestion(suggestion),
+                                  child: Listener(
+                                    behavior: HitTestBehavior.translucent,
+                                    onPointerDown: (_) =>
+                                        _selectSuggestion(suggestion),
+                                    child: ListTile(
+                                      dense: true,
+                                      leading: const Icon(
+                                        Icons.location_on_outlined,
+                                        size: 20,
+                                        color: AppColors.primary,
+                                      ),
+                                      title: Text(suggestion.displayLabel),
+                                      subtitle:
+                                          suggestion.displayLabel !=
+                                                  suggestion.canonicalName
+                                              ? Text(
+                                                  suggestion.canonicalName,
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .bodySmall,
+                                                )
+                                              : null,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
             ),
           ),
         ],
